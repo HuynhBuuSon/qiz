@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { Home, Gamepad2, Settings, LogOut } from 'lucide-react';
 import AdminDashboardHeader from '@/components/admin/AdminDashboardHeader';
+import PlayerPopup from '@/components/PlayerPopup';
 
 export default function AdminHome() {
   const router = useRouter();
@@ -12,16 +13,89 @@ export default function AdminHome() {
     'home'
   );
 
-  const players = useGameStore((state) => state.players);
   const currentRoom = useGameStore((state) => state.currentRoom);
   const reset = useGameStore((state) => state.reset);
+  
+  const [players, setPlayers] = useState<any[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (currentRoom?.id) {
+      loadPlayers();
+      const interval = setInterval(loadPlayers, 2000); // Refresh every 2 seconds
+      return () => clearInterval(interval);
+    }
+  }, [currentRoom]);
+
+  const loadPlayers = async () => {
+    try {
+      const response = await fetch(`/api/rooms/${currentRoom?.id}/players`);
+      if (!response.ok) throw new Error('Failed to load players');
+      const data = await response.json();
+      setPlayers(data);
+      setError('');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     reset();
     router.push('/');
   };
 
-  const columns = Math.ceil(Math.sqrt(players.length));
+  // Calculate gradient color based on rank
+  const getPlayerColor = (rank: number, totalPlayers: number) => {
+    if (!currentRoom) return '#3b82f6';
+    
+    const colorFrom = currentRoom.colorFrom || '#10b981';
+    const colorTo = currentRoom.colorTo || '#1e40af';
+    
+    // Interpolate between colors based on rank
+    const ratio = (rank - 1) / Math.max(1, totalPlayers - 1);
+    
+    // Parse hex colors to RGB
+    const fromHex = colorFrom.replace('#', '');
+    const toHex = colorTo.replace('#', '');
+    
+    const r1 = parseInt(fromHex.substring(0, 2), 16);
+    const g1 = parseInt(fromHex.substring(2, 4), 16);
+    const b1 = parseInt(fromHex.substring(4, 6), 16);
+    
+    const r2 = parseInt(toHex.substring(0, 2), 16);
+    const g2 = parseInt(toHex.substring(2, 4), 16);
+    const b2 = parseInt(toHex.substring(4, 6), 16);
+    
+    const r = Math.round(r1 + (r2 - r1) * ratio);
+    const g = Math.round(g1 + (g2 - g1) * ratio);
+    const b = Math.round(b1 + (b2 - b1) * ratio);
+    
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+
+  const columns = Math.max(2, Math.ceil(Math.sqrt(players.length)));
+
+  if (!currentRoom?.id) {
+    return (
+      <div className="min-h-screen w-full flex flex-col bg-gray-50">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center text-gray-500">
+            <p>Please create or select a room first.</p>
+            <button
+              onClick={() => router.push('/')}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Go Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gray-50">
@@ -43,7 +117,15 @@ export default function AdminHome() {
             <AdminDashboardHeader />
             <h2 className="text-2xl font-bold mb-6 mt-6">Players Display</h2>
             
-            {players.length === 0 ? (
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                {error}
+              </div>
+            )}
+            
+            {loading ? (
+              <div className="text-center text-gray-500">Loading players...</div>
+            ) : players.length === 0 ? (
               <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
                 No players joined yet
               </div>
@@ -51,35 +133,40 @@ export default function AdminHome() {
               <div
                 className="grid gap-4"
                 style={{
-                  gridTemplateColumns: `repeat(${columns}, minmax(100px, 1fr))`,
+                  gridTemplateColumns: `repeat(${columns}, minmax(120px, 1fr))`,
                 }}
               >
-                {players.map((player) => (
-                  <div
-                    key={player.id}
-                    className="bg-white rounded-lg shadow p-4 text-center cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => {
-                      // TODO: Show player details popup
-                    }}
-                  >
+                {players
+                  .sort((a, b) => (a.rank || 999) - (b.rank || 999))
+                  .map((player) => (
                     <div
-                      className="h-32 rounded mb-3 flex items-center justify-center text-white font-bold text-2xl"
-                      style={{
-                        backgroundColor:
-                          player.color || currentRoom?.mainColor || '#3b82f6',
-                      }}
+                      key={player.id}
+                      className="rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
+                      onClick={() => setSelectedPlayer(player)}
                     >
-                      {player.rank || 'N/A'}
+                      <div
+                        className="h-40 flex items-center justify-center text-white font-bold text-5xl transition-colors"
+                        style={{
+                          backgroundColor: getPlayerColor(player.rank || 999, players.length),
+                        }}
+                      >
+                        {player.rank || '—'}
+                      </div>
+                      <div className="bg-white p-3">
+                        <p className="font-semibold text-sm text-gray-800 truncate">
+                          ID: {player.id.substring(0, 8)}
+                        </p>
+                        <p className="text-xs text-gray-600 truncate">
+                          {player.name}
+                        </p>
+                        {!player.isScoreHidden && (
+                          <p className="text-xs text-blue-600 font-semibold mt-1">
+                            {player.score || 0} pts
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <p className="font-semibold text-sm text-gray-800">
-                      {player.id}
-                    </p>
-                    <p className="text-xs text-gray-600">{player.name}</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      {player.score} pts
-                    </p>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
@@ -88,17 +175,54 @@ export default function AdminHome() {
         {activeTab === 'games' && (
           <div className="max-w-2xl mx-auto">
             <h2 className="text-2xl font-bold mb-6">Games Management</h2>
-            <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
-              Games management to be implemented
-            </div>
+            <button
+              onClick={() => router.push('/admin/games')}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Go to Games
+            </button>
           </div>
         )}
 
         {activeTab === 'settings' && (
           <div className="max-w-2xl mx-auto">
             <h2 className="text-2xl font-bold mb-6">Settings</h2>
-            <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
-              Settings to be implemented
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Room Name
+                  </label>
+                  <input
+                    type="text"
+                    value={currentRoom?.name || ''}
+                    disabled
+                    className="w-full px-3 py-2 border rounded bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Join Code
+                  </label>
+                  <input
+                    type="text"
+                    value={currentRoom?.joinCode || ''}
+                    disabled
+                    className="w-full px-3 py-2 border rounded bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Presentation Code
+                  </label>
+                  <input
+                    type="text"
+                    value={currentRoom?.presentationCode || ''}
+                    disabled
+                    className="w-full px-3 py-2 border rounded bg-gray-100"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -144,6 +268,16 @@ export default function AdminHome() {
           </button>
         </div>
       </div>
+
+      {/* Player Popup */}
+      {selectedPlayer && (
+        <PlayerPopup
+          player={selectedPlayer}
+          roomId={currentRoom.id}
+          onClose={() => setSelectedPlayer(null)}
+          onUpdate={loadPlayers}
+        />
+      )}
     </div>
   );
 }
