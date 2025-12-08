@@ -3,33 +3,41 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
+import { useDataRecovery } from '@/hooks/useDataRecovery';
+import { toCamelCase } from '@/lib/utils/helpers';
 import { Trash2, Edit, Play, Square } from 'lucide-react';
+import GameSelectorModal from '@/components/admin/GameSelectorModal';
+import GameSettingsModal from '@/components/admin/GameSettingsModal';
 
 export default function AdminGames() {
   const router = useRouter();
-  const currentRoom = useGameStore((state) => state.currentRoom);
+  const { isReady, currentRoom } = useDataRecovery('admin');
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [addingGame, setAddingGame] = useState(false);
+  const [showGameSelector, setShowGameSelector] = useState(false);
+  const [showGameSettings, setShowGameSettings] = useState(false);
+  const [selectedGameType, setSelectedGameType] = useState('');
 
   useEffect(() => {
+    if (!isReady) return;
+
     if (currentRoom?.id) {
       loadGames();
     } else {
       setLoading(false);
     }
-  }, [currentRoom]);
+  }, [isReady, currentRoom?.id]);
 
   const loadGames = async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
-      
+
       if (!response.ok) throw new Error('Failed to load games');
-      
+
       const data = await response.json();
-      setGames(data);
+      setGames(Array.isArray(data) ? data.map(toCamelCase) : []);
     } catch (err: any) {
       setError(err.message || 'Failed to load games');
     } finally {
@@ -92,32 +100,47 @@ export default function AdminGames() {
     }
   };
 
-  const handleAddGame = async () => {
-    try {
-      setAddingGame(true);
-      setError('');
+  const handleAddGame = async (gameType: string) => {
+    setSelectedGameType(gameType);
+    setShowGameSettings(true);
+  };
 
-      // Create a new game with default settings
+  const handleSaveGameSettings = async (settings: any) => {
+    try {
       const response = await fetch(
         `/api/rooms/${currentRoom?.id}/games`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: `Game ${games.length + 1}`,
-            type: 'weight', // Default to weight game
+            name: settings.gameName,
+            type: selectedGameType,
             status: 'pending',
+            gameOrder: games.length + 1,
+            settings: {
+              pointMode: settings.pointMode,
+              pointFrom: settings.pointFrom,
+              pointTo: settings.pointTo,
+              ...(selectedGameType === 'weight' && {
+                weightLimit: settings.weightLimit,
+                weightUnit: settings.weightUnit,
+                gameMode: settings.gameMode,
+              }),
+              ...(selectedGameType === 'random' && {
+                pointAward: settings.pointAward,
+                isRepeat: settings.isRepeat,
+              }),
+            },
           }),
         }
       );
 
       if (!response.ok) throw new Error('Failed to add game');
-      
+
+      setShowGameSettings(false);
       await loadGames();
     } catch (err: any) {
       setError(err.message || 'Failed to add game');
-    } finally {
-      setAddingGame(false);
     }
   };
 
@@ -174,11 +197,13 @@ export default function AdminGames() {
         )}
 
         <button
-          onClick={handleAddGame}
-          disabled={addingGame}
-          className="mb-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+          onClick={() => {
+            console.log('Add Game button clicked, setting showGameSelector to true');
+            setShowGameSelector(true);
+          }}
+          className="mb-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          {addingGame ? 'Adding...' : '+ Add Game'}
+          + Add Game
         </button>
 
         {games.length === 0 ? (
@@ -249,6 +274,36 @@ export default function AdminGames() {
           </div>
         )}
       </div>
+
+      {/* Game Selector Modal - rendered at top level */}
+      <GameSelectorModal
+        isOpen={showGameSelector}
+        onClose={() => {
+          setShowGameSelector(false);
+        }}
+        onSelectGame={(gameType) => {
+          setSelectedGameType(gameType);
+          setShowGameSelector(false);
+          setShowGameSettings(true);
+        }}
+      />
+
+      {/* Game Settings Modal - rendered at top level */}
+      <GameSettingsModal
+        isOpen={showGameSettings}
+        gameType={selectedGameType}
+        onClose={() => setShowGameSettings(false)}
+        onSave={handleSaveGameSettings}
+        globalSettings={currentRoom ? {
+          pointMode: currentRoom.pointMode || 'mode1',
+          pointFrom: currentRoom.pointFrom || 10,
+          pointTo: currentRoom.pointTo || 1,
+        } : {
+          pointMode: 'mode1',
+          pointFrom: 10,
+          pointTo: 1,
+        }}
+      />
     </div>
   );
 }

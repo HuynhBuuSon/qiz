@@ -1,4 +1,5 @@
 import { query } from './config';
+import pool from './config';
 
 const migrations = [
   // Create game_rooms table
@@ -7,8 +8,8 @@ const migrations = [
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name VARCHAR(255) NOT NULL,
       room_number INTEGER UNIQUE,
-      join_code VARCHAR(10) NOT NULL UNIQUE,
-      presentation_code VARCHAR(10) NOT NULL UNIQUE,
+      join_code VARCHAR(10) NOT NULL,
+      presentation_code VARCHAR(10) NOT NULL,
       main_color VARCHAR(7) NOT NULL,
       color_from VARCHAR(7) NOT NULL,
       color_to VARCHAR(7) NOT NULL,
@@ -21,9 +22,17 @@ const migrations = [
       status VARCHAR(20) DEFAULT 'active',
       settings JSONB DEFAULT '{}'
     );
+  `,
+
+  // Add room_number column if it doesn't exist
+  `
+    ALTER TABLE IF EXISTS game_rooms
+    ADD COLUMN IF NOT EXISTS room_number INTEGER UNIQUE;
+  `,
+
+  // Create indexes for game_rooms
+  `
     CREATE INDEX IF NOT EXISTS idx_room_number ON game_rooms(room_number);
-    CREATE INDEX IF NOT EXISTS idx_join_code ON game_rooms(join_code);
-    CREATE INDEX IF NOT EXISTS idx_presentation_code ON game_rooms(presentation_code);
   `,
 
   // Create players table

@@ -3,18 +3,21 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
+import { useDataRecovery } from '@/hooks/useDataRecovery';
+import { toCamelCase } from '@/lib/utils/helpers';
 import { Home, Gamepad2, Settings, LogOut } from 'lucide-react';
 import AdminDashboardHeader from '@/components/admin/AdminDashboardHeader';
 import PlayerPopup from '@/components/PlayerPopup';
 
 export default function AdminHome() {
   const router = useRouter();
+  const { isReady, currentRoom } = useDataRecovery('admin');
+  const reset = useGameStore((state) => state.reset);
+  const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
+  
   const [activeTab, setActiveTab] = useState<'home' | 'games' | 'settings'>(
     'home'
   );
-
-  const currentRoom = useGameStore((state) => state.currentRoom);
-  const reset = useGameStore((state) => state.reset);
   
   const [players, setPlayers] = useState<any[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
@@ -25,25 +28,32 @@ export default function AdminHome() {
   const [loadingGames, setLoadingGames] = useState(false);
 
   useEffect(() => {
-    if (currentRoom?.id) {
+    if (!isReady) return;
+    
+    if (!currentRoom?.id) {
+      router.push('/admin/create');
+      return;
+    }
+
+    loadPlayers();
+    loadActiveGame();
+    loadGames();
+    
+    const interval = setInterval(() => {
       loadPlayers();
       loadActiveGame();
       loadGames();
-      const interval = setInterval(() => {
-        loadPlayers();
-        loadActiveGame();
-        loadGames();
-      }, 2000); // Refresh every 2 seconds
-      return () => clearInterval(interval);
-    }
-  }, [currentRoom]);
+    }, 2000); // Refresh every 2 seconds
+    
+    return () => clearInterval(interval);
+  }, [isReady, currentRoom?.id, router]);
 
   const loadPlayers = async () => {
     try {
       const response = await fetch(`/api/rooms/${currentRoom?.id}/players`);
       if (!response.ok) throw new Error('Failed to load players');
       const data = await response.json();
-      setPlayers(data);
+      setPlayers(Array.isArray(data) ? data.map(toCamelCase) : []);
       setError('');
     } catch (err: any) {
       setError(err.message);
@@ -58,7 +68,7 @@ export default function AdminHome() {
       const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
       if (!response.ok) throw new Error('Failed to load games');
       const data = await response.json();
-      setGames(data);
+      setGames(Array.isArray(data) ? data.map(toCamelCase) : []);
     } catch (err: any) {
       console.error('Error loading games:', err);
     } finally {
@@ -72,7 +82,8 @@ export default function AdminHome() {
       if (!response.ok) return;
       const games = await response.json();
       // Find the active game
-      const active = games.find((g: any) => g.status === 'active');
+      const gamesArray = Array.isArray(games) ? games.map(toCamelCase) : [];
+      const active = gamesArray.find((g: any) => g.status === 'active');
       setActiveGame(active || null);
     } catch (err: any) {
       console.error('Failed to load games:', err);

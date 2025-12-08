@@ -1,19 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
+import { useDataRecovery } from '@/hooks/useDataRecovery';
+import { toCamelCase } from '@/lib/utils/helpers';
 import PresentationQRCode from '@/components/presenter/PresentationQRCode';
 import RandomGameComponent from '@/components/RandomGameComponent';
 
 export default function PresenterDisplay() {
-  const currentRoom = useGameStore((state) => state.currentRoom);
+  const router = useRouter();
+  const { isReady, currentRoom } = useDataRecovery('presenter');
   const [players, setPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeGame, setActiveGame] = useState<any>(null);
   const [showQR, setShowQR] = useState(false);
 
   useEffect(() => {
+    if (!isReady) return;
+    
     if (!currentRoom?.id) {
+      router.push('/presenter/join');
       setLoading(false);
       return;
     }
@@ -23,7 +30,7 @@ export default function PresenterDisplay() {
         const response = await fetch(`/api/rooms/${currentRoom.id}/players`);
         if (response.ok) {
           const data = await response.json();
-          setPlayers(data);
+          setPlayers(Array.isArray(data) ? data.map(toCamelCase) : []);
         }
       } catch (error) {
         console.error('Failed to load players:', error);
@@ -37,7 +44,8 @@ export default function PresenterDisplay() {
         const response = await fetch(`/api/rooms/${currentRoom.id}/games`);
         if (response.ok) {
           const games = await response.json();
-          const active = games.find((g: any) => g.status === 'active');
+          const gamesArray = Array.isArray(games) ? games.map(toCamelCase) : [];
+          const active = gamesArray.find((g: any) => g.status === 'active');
           setActiveGame(active || null);
         }
       } catch (error) {
@@ -52,7 +60,7 @@ export default function PresenterDisplay() {
       loadActiveGame();
     }, 1000); // Update every 1 second
     return () => clearInterval(interval);
-  }, [currentRoom]);
+  }, [isReady, currentRoom?.id, router]);
 
   // Calculate gradient color based on rank
   const getPlayerColor = (rank: number, totalPlayers: number) => {

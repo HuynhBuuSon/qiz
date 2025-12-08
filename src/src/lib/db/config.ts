@@ -1,11 +1,14 @@
 import { Pool } from 'pg';
-
+import dotenv from 'dotenv';
+import path from 'path';
+// Load .env.local from project root
+dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
+  host: process.env.DB_HOST || '192.168.1.7',
+  port: parseInt(process.env.DB_PORT || '5433'),
   database: process.env.DB_NAME || 'game',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'YourStrongPassword123!',
+  password: process.env.DB_PASSWORD || 'postgres',
 });
 
 pool.on('error', (err) => {
