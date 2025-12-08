@@ -8,6 +8,8 @@ export default function PresenterDisplay() {
   const currentRoom = useGameStore((state) => state.currentRoom);
   const [players, setPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeGame, setActiveGame] = useState<any>(null);
+  const [showQR, setShowQR] = useState(false);
 
   useEffect(() => {
     if (!currentRoom?.id) {
@@ -29,8 +31,25 @@ export default function PresenterDisplay() {
       }
     };
 
+    const loadActiveGame = async () => {
+      try {
+        const response = await fetch(`/api/rooms/${currentRoom.id}/games`);
+        if (response.ok) {
+          const games = await response.json();
+          const active = games.find((g: any) => g.status === 'active');
+          setActiveGame(active || null);
+        }
+      } catch (error) {
+        console.error('Failed to load games:', error);
+      }
+    };
+
     loadPlayers();
-    const interval = setInterval(loadPlayers, 1000); // Update every 1 second
+    loadActiveGame();
+    const interval = setInterval(() => {
+      loadPlayers();
+      loadActiveGame();
+    }, 1000); // Update every 1 second
     return () => clearInterval(interval);
   }, [currentRoom]);
 
@@ -98,6 +117,23 @@ export default function PresenterDisplay() {
             </details>
           </div>
         </div>
+
+        {/* Active Game Status */}
+        {activeGame && (
+          <div className="mb-8 bg-blue-900/50 border-2 border-blue-500 rounded-lg p-6 text-center">
+            <p className="text-xl font-semibold text-blue-200 mb-2">
+              🎮 Active Game
+            </p>
+            <p className="text-3xl font-bold text-blue-300 mb-4">
+              {activeGame.type === 'weight' ? '⚖️ Weight Game' : '🎡 Random Game'}
+            </p>
+            <p className="text-lg text-blue-200">
+              {activeGame.type === 'weight'
+                ? 'Players are submitting their weight changes'
+                : 'Watch the spin!'}
+            </p>
+          </div>
+        )}
 
         {/* Players Grid or List */}
         {loading ? (

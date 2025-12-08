@@ -3,13 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import useGameStore from '@/store/gameStore';
 
 export default function PresenterJoin() {
   const router = useRouter();
-  const [roomNumber, setRoomNumber] = useState('');
+  const [roomCode, setRoomCode] = useState('');
   const [presentationCode, setPresentationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,12 +20,60 @@ export default function PresenterJoin() {
     setError('');
 
     try {
-      if (!roomNumber || !presentationCode) {
-        setError('Please fill in all fields');
+      // Validate inputs
+      if (!roomCode.trim()) {
+        setError('Room code is required');
+        setLoading(false);
         return;
       }
 
-      // TODO: Implement actual API call
+      if (!presentationCode.trim()) {
+        setError('Presentation code is required');
+        setLoading(false);
+        return;
+      }
+
+      if (roomCode.length < 4) {
+        setError('Room code must be at least 4 characters');
+        setLoading(false);
+        return;
+      }
+
+      if (presentationCode.length < 4) {
+        setError('Presentation code must be at least 4 characters');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch rooms and find matching code
+      const roomsResponse = await fetch('/api/rooms');
+      if (!roomsResponse.ok) {
+        throw new Error('Failed to connect to server');
+      }
+
+      const rooms = await roomsResponse.json();
+      const room = rooms.find((r: any) => 
+        r.join_code === roomCode || 
+        r.presentation_code === roomCode
+      );
+
+      if (!room) {
+        setError('Room code not found. Please check and try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Verify presentation code
+      if (room.presentation_code !== presentationCode) {
+        setError('Invalid presentation code. Access denied.');
+        setLoading(false);
+        return;
+      }
+
+      // Store room data
+      setCurrentRoom(room);
+
+      // Redirect to presentation display
       router.push('/presenter/display');
     } catch (err: any) {
       setError(err.message || 'Failed to join as presenter');
@@ -57,14 +108,15 @@ export default function PresenterJoin() {
           <form onSubmit={handleJoin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Room Number
+                Room Code
               </label>
               <input
                 type="text"
-                value={roomNumber}
-                onChange={(e) => setRoomNumber(e.target.value.toUpperCase())}
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
                 placeholder="Enter room code"
+                disabled={loading}
               />
             </div>
 
@@ -78,6 +130,7 @@ export default function PresenterJoin() {
                 onChange={(e) => setPresentationCode(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
                 placeholder="Enter presentation code"
+                disabled={loading}
               />
             </div>
 

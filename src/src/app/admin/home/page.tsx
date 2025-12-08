@@ -20,11 +20,16 @@ export default function AdminHome() {
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeGame, setActiveGame] = useState<any>(null);
 
   useEffect(() => {
     if (currentRoom?.id) {
       loadPlayers();
-      const interval = setInterval(loadPlayers, 2000); // Refresh every 2 seconds
+      loadActiveGame();
+      const interval = setInterval(() => {
+        loadPlayers();
+        loadActiveGame();
+      }, 2000); // Refresh every 2 seconds
       return () => clearInterval(interval);
     }
   }, [currentRoom]);
@@ -40,6 +45,19 @@ export default function AdminHome() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadActiveGame = async () => {
+    try {
+      const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
+      if (!response.ok) return;
+      const games = await response.json();
+      // Find the active game
+      const active = games.find((g: any) => g.status === 'active');
+      setActiveGame(active || null);
+    } catch (err: any) {
+      console.error('Failed to load games:', err);
     }
   };
 
@@ -115,6 +133,32 @@ export default function AdminHome() {
         {activeTab === 'home' && (
           <div className="max-w-6xl mx-auto">
             <AdminDashboardHeader />
+
+            {/* Active Game Section */}
+            {activeGame && (
+              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-6 mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-blue-800">
+                      🎮 Active Game: {activeGame.name || 'Game'}
+                    </h3>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Type: <span className="font-semibold">{activeGame.type}</span> • 
+                      Status: <span className="font-semibold">{activeGame.status}</span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <button
+                      onClick={() => window.location.href = '/admin/games'}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+                    >
+                      Manage Game
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <h2 className="text-2xl font-bold mb-6 mt-6">Players Display</h2>
             
             {error && (

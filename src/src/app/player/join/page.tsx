@@ -23,8 +23,27 @@ export default function PlayerJoin() {
     setError('');
 
     try {
-      if (!playerName || !roomNumber || !joinCode) {
-        setError('Please fill in all fields');
+      // Validate inputs
+      if (!playerName.trim()) {
+        setError('Player name is required');
+        setLoading(false);
+        return;
+      }
+
+      if (!joinCode.trim()) {
+        setError('Join code is required');
+        setLoading(false);
+        return;
+      }
+
+      if (playerName.length < 2 || playerName.length > 50) {
+        setError('Player name must be between 2 and 50 characters');
+        setLoading(false);
+        return;
+      }
+
+      if (joinCode.length < 4) {
+        setError('Join code must be at least 4 characters');
         setLoading(false);
         return;
       }
@@ -37,7 +56,14 @@ export default function PlayerJoin() {
       const room = rooms.find((r: any) => r.join_code === joinCode || r.id === roomNumber);
       
       if (!room) {
-        setError('Invalid room code or room number');
+        setError('Invalid room code or room number. Please check and try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Check if room is full
+      if (room.currentPlayers >= room.maxPlayers) {
+        setError(`Room is full (${room.maxPlayers} players max)`);
         setLoading(false);
         return;
       }

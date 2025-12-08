@@ -43,8 +43,56 @@ export default function AdminCreate() {
 
     try {
       // Validate required fields
-      if (!formData.gameName || !formData.joinPassCode || !formData.presentationPassCode) {
-        setError('Please fill in all required fields');
+      if (!formData.gameName.trim()) {
+        setError('Game name is required');
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.joinPassCode.trim()) {
+        setError('Join code is required');
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.presentationPassCode.trim()) {
+        setError('Presentation code is required');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.gameName.length < 2 || formData.gameName.length > 50) {
+        setError('Game name must be between 2 and 50 characters');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.joinPassCode.length < 4) {
+        setError('Join code must be at least 4 characters');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.presentationPassCode.length < 4) {
+        setError('Presentation code must be at least 4 characters');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.pointFrom >= formData.pointTo) {
+        setError('Starting points must be less than ending points');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.pointFrom < 0 || formData.pointTo < 0) {
+        setError('Points cannot be negative');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.maxPlayers < 2 || formData.maxPlayers > 100) {
+        setError('Max players must be between 2 and 100');
         setLoading(false);
         return;
       }
