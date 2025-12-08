@@ -20,6 +20,24 @@ export async function GET() {
   }
 }
 
+// Generate a unique 4-digit room number
+async function generateRoomNumber(): Promise<number> {
+  for (let attempts = 0; attempts < 100; attempts++) {
+    const roomNumber = Math.floor(Math.random() * 9000) + 1000; // 1000-9999
+    
+    const result = await query(
+      'SELECT id FROM game_rooms WHERE room_number = $1',
+      [roomNumber]
+    );
+    
+    if (result.rows.length === 0) {
+      return roomNumber;
+    }
+  }
+  
+  throw new Error('Failed to generate unique room number');
+}
+
 // Create a new game room
 export async function POST(req: NextRequest) {
   try {
@@ -34,21 +52,25 @@ export async function POST(req: NextRequest) {
       pointFrom,
       pointTo,
       createdBy,
+      join_code: joinCodeInput,
+      presentation_code: presentationCodeInput,
     } = body;
 
-    const joinCode = generateCode();
-    const presentationCode = generateCode();
+    const joinCode = joinCodeInput || generateCode();
+    const presentationCode = presentationCodeInput || generateCode();
+    const roomNumber = await generateRoomNumber();
     const roomId = uuidv4();
 
     const result = await query(
       `INSERT INTO game_rooms (
-        id, name, join_code, presentation_code, main_color, color_from, color_to,
+        id, name, room_number, join_code, presentation_code, main_color, color_from, color_to,
         max_players, point_mode, point_from, point_to, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         roomId,
         name,
+        roomNumber,
         joinCode,
         presentationCode,
         mainColor,

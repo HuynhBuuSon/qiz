@@ -2,6 +2,7 @@
 export interface GameRoom {
   id: string;
   name: string;
+  roomNumber?: number;
   joinCode: string;
   presentationCode: string;
   mainColor: string;

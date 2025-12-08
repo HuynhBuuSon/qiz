@@ -1,19 +1,33 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import useGameStore from '@/store/gameStore';
 import { toCamelCase } from '@/lib/utils/helpers';
 
-export default function PresenterJoin() {
+function PresenterJoinContent() {
   const router = useRouter();
-  const [roomCode, setRoomCode] = useState('');
+  const searchParams = useSearchParams();
+  const [roomNumber, setRoomNumber] = useState('');
   const [presentationCode, setPresentationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
+
+  // Load room number and presentation code from URL parameters
+  useEffect(() => {
+    const urlRoomNumber = searchParams.get('room');
+    const urlPresentationCode = searchParams.get('code');
+    
+    if (urlRoomNumber) {
+      setRoomNumber(urlRoomNumber);
+    }
+    if (urlPresentationCode) {
+      setPresentationCode(urlPresentationCode);
+    }
+  }, [searchParams]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,26 +36,8 @@ export default function PresenterJoin() {
 
     try {
       // Validate inputs
-      if (!roomCode.trim()) {
-        setError('Room code is required');
-        setLoading(false);
-        return;
-      }
-
-      if (!presentationCode.trim()) {
-        setError('Presentation code is required');
-        setLoading(false);
-        return;
-      }
-
-      if (roomCode.length < 4) {
-        setError('Room code must be at least 4 characters');
-        setLoading(false);
-        return;
-      }
-
-      if (presentationCode.length < 4) {
-        setError('Presentation code must be at least 4 characters');
+      if (!roomNumber.trim() && !presentationCode.trim()) {
+        setError('Either room number or presentation code is required');
         setLoading(false);
         return;
       }
@@ -53,19 +49,24 @@ export default function PresenterJoin() {
       }
 
       const rooms = await roomsResponse.json();
-      const room = rooms.find((r: any) => 
-        r.join_code === roomCode || 
-        r.presentation_code === roomCode
-      );
+      let room = null;
+
+      if (roomNumber.trim()) {
+        room = rooms.find((r: any) => r.room_number === parseInt(roomNumber));
+      }
+      
+      if (!room && presentationCode.trim()) {
+        room = rooms.find((r: any) => r.presentation_code === presentationCode);
+      }
 
       if (!room) {
-        setError('Room code not found. Please check and try again.');
+        setError('Room not found. Please check and try again.');
         setLoading(false);
         return;
       }
 
-      // Verify presentation code
-      if (room.presentation_code !== presentationCode) {
+      // Verify presentation code if provided
+      if (presentationCode.trim() && room.presentation_code !== presentationCode) {
         setError('Invalid presentation code. Access denied.');
         setLoading(false);
         return;
@@ -110,16 +111,18 @@ export default function PresenterJoin() {
           <form onSubmit={handleJoin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Room Code
+                Room Number (4-digit)
               </label>
               <input
                 type="text"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                value={roomNumber}
+                onChange={(e) => setRoomNumber(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
-                placeholder="Enter room code"
+                placeholder="e.g., 1234"
                 disabled={loading}
+                maxLength={4}
               />
+              <p className="text-xs text-gray-500 mt-1">Or use presentation code below</p>
             </div>
 
             <div>
@@ -127,9 +130,9 @@ export default function PresenterJoin() {
                 Presentation Code
               </label>
               <input
-                type="password"
+                type="text"
                 value={presentationCode}
-                onChange={(e) => setPresentationCode(e.target.value)}
+                onChange={(e) => setPresentationCode(e.target.value.toUpperCase())}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
                 placeholder="Enter presentation code"
                 disabled={loading}
@@ -147,5 +150,19 @@ export default function PresenterJoin() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PresenterJoin() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-orange-500 to-red-600 p-4">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-white text-center">Loading...</div>
+        </div>
+      </div>
+    }>
+      <PresenterJoinContent />
+    </Suspense>
   );
 }

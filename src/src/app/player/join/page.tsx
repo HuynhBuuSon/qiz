@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { toCamelCase } from '@/lib/utils/helpers';
 import { ArrowLeft } from 'lucide-react';
 
-export default function PlayerJoin() {
+function PlayerJoinContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [playerName, setPlayerName] = useState('');
   const [roomNumber, setRoomNumber] = useState('');
   const [joinCode, setJoinCode] = useState('');
@@ -17,6 +18,19 @@ export default function PlayerJoin() {
   const setPlayerId = useGameStore((state) => state.setPlayerId);
   const setRoomId = useGameStore((state) => state.setRoomId);
   const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
+
+  // Load room number and join code from URL parameters
+  useEffect(() => {
+    const urlRoomNumber = searchParams.get('room');
+    const urlJoinCode = searchParams.get('code');
+    
+    if (urlRoomNumber) {
+      setRoomNumber(urlRoomNumber);
+    }
+    if (urlJoinCode) {
+      setJoinCode(urlJoinCode);
+    }
+  }, [searchParams]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,33 +45,35 @@ export default function PlayerJoin() {
         return;
       }
 
-      if (!joinCode.trim()) {
-        setError('Join code is required');
-        setLoading(false);
-        return;
-      }
-
       if (playerName.length < 2 || playerName.length > 50) {
         setError('Player name must be between 2 and 50 characters');
         setLoading(false);
         return;
       }
 
-      if (joinCode.length < 4) {
-        setError('Join code must be at least 4 characters');
+      if (!roomNumber.trim() && !joinCode.trim()) {
+        setError('Either room number or join code is required');
         setLoading(false);
         return;
       }
 
-      // 1. Get all rooms and find matching room by code
+      // 1. Get all rooms and find matching room by number or code
       const roomsResponse = await fetch('/api/rooms');
       if (!roomsResponse.ok) throw new Error('Failed to fetch rooms');
       
       const rooms = await roomsResponse.json();
-      const room = rooms.find((r: any) => r.join_code === joinCode || r.id === roomNumber);
+      let room = null;
+
+      if (roomNumber.trim()) {
+        room = rooms.find((r: any) => r.room_number === parseInt(roomNumber));
+      }
+      
+      if (!room && joinCode.trim()) {
+        room = rooms.find((r: any) => r.join_code === joinCode);
+      }
       
       if (!room) {
-        setError('Invalid room code or room number. Please check and try again.');
+        setError('Invalid room number or join code. Please check and try again.');
         setLoading(false);
         return;
       }
@@ -127,7 +143,7 @@ export default function PlayerJoin() {
           <form onSubmit={handleJoin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Player Name
+                Player Name *
               </label>
               <input
                 type="text"
@@ -140,15 +156,17 @@ export default function PlayerJoin() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Room Number
+                Room Number (4-digit)
               </label>
               <input
                 type="text"
                 value={roomNumber}
-                onChange={(e) => setRoomNumber(e.target.value.toUpperCase())}
+                onChange={(e) => setRoomNumber(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="Enter room code"
+                placeholder="e.g., 1234"
+                maxLength={4}
               />
+              <p className="text-xs text-gray-500 mt-1">Or use join code below</p>
             </div>
 
             <div>
@@ -156,9 +174,9 @@ export default function PlayerJoin() {
                 Join Code
               </label>
               <input
-                type="password"
+                type="text"
                 value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 placeholder="Enter join code"
               />
@@ -175,5 +193,19 @@ export default function PlayerJoin() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PlayerJoin() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-blue-500 to-purple-600 p-4">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-white text-center">Loading...</div>
+        </div>
+      </div>
+    }>
+      <PlayerJoinContent />
+    </Suspense>
   );
 }

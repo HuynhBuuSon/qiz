@@ -6,6 +6,7 @@ const migrations = [
     CREATE TABLE IF NOT EXISTS game_rooms (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name VARCHAR(255) NOT NULL,
+      room_number INTEGER UNIQUE,
       join_code VARCHAR(10) NOT NULL UNIQUE,
       presentation_code VARCHAR(10) NOT NULL UNIQUE,
       main_color VARCHAR(7) NOT NULL,
@@ -20,6 +21,7 @@ const migrations = [
       status VARCHAR(20) DEFAULT 'active',
       settings JSONB DEFAULT '{}'
     );
+    CREATE INDEX IF NOT EXISTS idx_room_number ON game_rooms(room_number);
     CREATE INDEX IF NOT EXISTS idx_join_code ON game_rooms(join_code);
     CREATE INDEX IF NOT EXISTS idx_presentation_code ON game_rooms(presentation_code);
   `,

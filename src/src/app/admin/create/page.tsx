@@ -52,32 +52,20 @@ export default function AdminCreate() {
         return;
       }
 
-      if (!formData.joinPassCode.trim()) {
-        setError('Join code is required');
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.presentationPassCode.trim()) {
-        setError('Presentation code is required');
-        setLoading(false);
-        return;
-      }
-
       if (formData.gameName.length < 2 || formData.gameName.length > 50) {
         setError('Game name must be between 2 and 50 characters');
         setLoading(false);
         return;
       }
 
-      if (formData.joinPassCode.length < 4) {
-        setError('Join code must be at least 4 characters');
+      if (formData.joinPassCode.length < 1) {
+        setError('Join code must be at least 1 character');
         setLoading(false);
         return;
       }
 
-      if (formData.presentationPassCode.length < 4) {
-        setError('Presentation code must be at least 4 characters');
+      if (formData.presentationPassCode.length < 1) {
+        setError('Presentation code must be at least 1 character');
         setLoading(false);
         return;
       }
