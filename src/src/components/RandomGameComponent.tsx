@@ -8,6 +8,8 @@ interface RandomGameComponentProps {
   roomId: string;
   isAdmin: boolean;
   currentStep: 'settings' | 'spinning' | 'actions' | 'ended';
+  players?: any[];
+  onStepChange?: (step: string) => void;
   onGameComplete?: () => void;
 }
 
@@ -16,6 +18,8 @@ export default function RandomGameComponent({
   roomId,
   isAdmin,
   currentStep,
+  players: initialPlayers,
+  onStepChange,
   onGameComplete,
 }: RandomGameComponentProps) {
   const [gameSettings, setGameSettings] = useState({

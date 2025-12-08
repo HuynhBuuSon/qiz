@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
-import { Copy, Check } from 'lucide-react';
+import { useDataRecovery } from '@/hooks/useDataRecovery';
+import { Copy, Check, ArrowLeft } from 'lucide-react';
 
 export default function AdminSettings() {
   const router = useRouter();
-  const currentRoom = useGameStore((state) => state.currentRoom);
-  const setColors = useGameStore((state) => state.setColors);
+  const { isReady, currentRoom } = useDataRecovery('admin');
   
   const [mainColor, setMainColor] = useState(
     currentRoom?.mainColor || '#3b82f6'
@@ -22,10 +22,23 @@ export default function AdminSettings() {
   const [message, setMessage] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  const handleSave = () => {
-    setColors(mainColor, colorFrom, colorTo);
-    setMessage('Settings saved successfully!');
-    setTimeout(() => setMessage(''), 2000);
+  const handleSave = async () => {
+    try {
+      const response = await fetch(`/api/rooms/${currentRoom?.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          colorFrom,
+          colorTo,
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to save settings');
+      setMessage('Settings saved successfully!');
+      setTimeout(() => setMessage(''), 2000);
+    } catch (err: any) {
+      setMessage(err.message || 'Failed to save settings');
+      setTimeout(() => setMessage(''), 3000);
+    }
   };
 
   const handleCopy = (text: string, field: string) => {
@@ -34,7 +47,7 @@ export default function AdminSettings() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  if (!currentRoom) {
+  if (!isReady || !currentRoom) {
     return (
       <div className="min-h-screen w-full flex flex-col bg-gray-50 p-4">
         <div className="max-w-md mx-auto w-full flex items-center justify-center">
@@ -45,10 +58,22 @@ export default function AdminSettings() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gray-50 p-4">
-      <div className="max-w-2xl mx-auto w-full">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Settings</h1>
-        <p className="text-gray-600 mb-6">Manage your game room configuration</p>
+    <div className="min-h-screen w-full flex flex-col bg-gray-50">
+      {/* Header with Back Button */}
+      <div className="bg-blue-600 text-white p-4 flex items-center gap-4 sticky top-0 z-10">
+        <button
+          onClick={() => router.push('/admin/home')}
+          className="p-2 hover:bg-blue-700 rounded flex items-center gap-2"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Back
+        </button>
+        <h1 className="text-xl font-bold">Room Settings</h1>
+      </div>
+
+      <div className="flex-1 p-4 overflow-auto">
+        <div className="max-w-2xl mx-auto w-full">
+          <p className="text-gray-600 mb-6">Manage your game room configuration</p>
 
         {message && (
           <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-lg text-sm">
@@ -239,6 +264,7 @@ export default function AdminSettings() {
               Save Settings
             </button>
           </div>
+        </div>
         </div>
       </div>
     </div>

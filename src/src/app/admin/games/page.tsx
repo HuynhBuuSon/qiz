@@ -5,29 +5,47 @@ import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
 import { toCamelCase } from '@/lib/utils/helpers';
-import { Trash2, Edit, Play, Square } from 'lucide-react';
+import { Trash2, Edit, Play, Square, ArrowLeft } from 'lucide-react';
 import GameSelectorModal from '@/components/admin/GameSelectorModal';
 import GameSettingsModal from '@/components/admin/GameSettingsModal';
+import GameControlModal from '@/components/admin/GameControlModal';
 
 export default function AdminGames() {
   const router = useRouter();
   const { isReady, currentRoom } = useDataRecovery('admin');
   const [games, setGames] = useState<any[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showGameSelector, setShowGameSelector] = useState(false);
   const [showGameSettings, setShowGameSettings] = useState(false);
+  const [showGameControl, setShowGameControl] = useState(false);
   const [selectedGameType, setSelectedGameType] = useState('');
+  const [selectedGame, setSelectedGame] = useState<any>(null);
 
   useEffect(() => {
     if (!isReady) return;
 
     if (currentRoom?.id) {
       loadGames();
+      loadPlayers();
     } else {
       setLoading(false);
     }
   }, [isReady, currentRoom?.id]);
+
+  const loadPlayers = async () => {
+    try {
+      const response = await fetch(`/api/rooms/${currentRoom?.id}/players`);
+
+      if (!response.ok) throw new Error('Failed to load players');
+
+      const data = await response.json();
+      setPlayers(Array.isArray(data) ? data.map(toCamelCase) : []);
+    } catch (err: any) {
+      console.error('Failed to load players:', err.message);
+    }
+  };
 
   const loadGames = async () => {
     try {
@@ -64,22 +82,35 @@ export default function AdminGames() {
     }
   };
 
-  const handleEndGame = async (gameId: string) => {
-    try {
-      const response = await fetch(
-        `/api/rooms/${currentRoom?.id}/games/${gameId}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'completed' }),
-        }
-      );
+  const handleGameControlClick = (game: any) => {
+    setSelectedGame(game);
+    setShowGameControl(true);
+  };
 
-      if (!response.ok) throw new Error('Failed to end game');
-      
-      loadGames();
-    } catch (err: any) {
-      setError(err.message || 'Failed to end game');
+  const handleGameControlClose = () => {
+    setShowGameControl(false);
+    setSelectedGame(null);
+    loadGames();
+  };
+
+  const handleGameStatusChange = async (status: string) => {
+    if (selectedGame) {
+      try {
+        const response = await fetch(
+          `/api/rooms/${currentRoom?.id}/games/${selectedGame.id}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status }),
+          }
+        );
+
+        if (!response.ok) throw new Error('Failed to update game status');
+        
+        await loadGames();
+      } catch (err: any) {
+        setError(err.message || 'Failed to update game status');
+      }
     }
   };
 
@@ -155,12 +186,19 @@ export default function AdminGames() {
 
   if (!currentRoom?.id) {
     return (
-      <div className="min-h-screen w-full flex flex-col bg-gray-50 p-4">
-        <div className="max-w-4xl mx-auto w-full">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">
-            Games Management
-          </h1>
-          <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+      <div className="min-h-screen w-full flex flex-col bg-gray-50">
+        <div className="bg-blue-600 text-white p-4 flex items-center gap-4 sticky top-0 z-10">
+          <button
+            onClick={() => router.push('/admin/home')}
+            className="p-2 hover:bg-blue-700 rounded flex items-center gap-2"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Back
+          </button>
+          <h1 className="text-xl font-bold">Games Management</h1>
+        </div>
+        <div className="flex-1 p-4 flex items-center justify-center">
+          <div className="text-center text-gray-500">
             Please create or select a room first.
           </div>
         </div>
@@ -170,12 +208,19 @@ export default function AdminGames() {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-full flex flex-col bg-gray-50 p-4">
-        <div className="max-w-4xl mx-auto w-full">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">
-            Games Management
-          </h1>
-          <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+      <div className="min-h-screen w-full flex flex-col bg-gray-50">
+        <div className="bg-blue-600 text-white p-4 flex items-center gap-4 sticky top-0 z-10">
+          <button
+            onClick={() => router.push('/admin/home')}
+            className="p-2 hover:bg-blue-700 rounded flex items-center gap-2"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Back
+          </button>
+          <h1 className="text-xl font-bold">Games Management</h1>
+        </div>
+        <div className="flex-1 p-4 flex items-center justify-center">
+          <div className="text-center text-gray-500">
             Loading games...
           </div>
         </div>
@@ -184,11 +229,21 @@ export default function AdminGames() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gray-50 p-4">
-      <div className="max-w-4xl mx-auto w-full">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">
-          Games Management
-        </h1>
+    <div className="min-h-screen w-full flex flex-col bg-gray-50">
+      {/* Header with Back Button */}
+      <div className="bg-blue-600 text-white p-4 flex items-center gap-4 sticky top-0 z-10">
+        <button
+          onClick={() => router.push('/admin/home')}
+          className="p-2 hover:bg-blue-700 rounded flex items-center gap-2"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Back
+        </button>
+        <h1 className="text-xl font-bold">Games Management</h1>
+      </div>
+
+      <div className="flex-1 p-4 overflow-auto">
+        <div className="max-w-4xl mx-auto w-full">
 
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -235,8 +290,8 @@ export default function AdminGames() {
                   <div className="flex gap-2">
                     {game.status === 'pending' && (
                       <button
-                        onClick={() => handleStartGame(game.id)}
-                        title="Start Game"
+                        onClick={() => handleGameControlClick(game)}
+                        title="Configure & Start Game"
                         className="p-2 bg-green-100 text-green-600 rounded hover:bg-green-200 transition-colors"
                       >
                         <Play className="w-5 h-5" />
@@ -245,24 +300,17 @@ export default function AdminGames() {
                     
                     {game.status === 'active' && (
                       <button
-                        onClick={() => handleEndGame(game.id)}
-                        title="End Game"
-                        className="p-2 bg-orange-100 text-orange-600 rounded hover:bg-orange-200 transition-colors"
+                        onClick={() => handleGameControlClick(game)}
+                        title="View Game Control"
+                        className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
                       >
                         <Square className="w-5 h-5" />
                       </button>
                     )}
                     
                     <button
-                      title="Edit Game"
-                      className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    
-                    <button
-                      onClick={() => handleDeleteGame(game.id)}
                       title="Delete Game"
+                      onClick={() => handleDeleteGame(game.id)}
                       className="p-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -304,6 +352,25 @@ export default function AdminGames() {
           pointTo: 1,
         }}
       />
+
+      {/* Game Control Modal - for managing active game */}
+      {selectedGame && (
+        <GameControlModal
+          isOpen={showGameControl}
+          gameId={selectedGame.id}
+          roomId={currentRoom?.id || ''}
+          gameName={selectedGame.name}
+          gameType={selectedGame.type}
+          currentStatus={selectedGame.status}
+          players={players}
+          onClose={handleGameControlClose}
+          onStatusChange={handleGameStatusChange}
+          onGameComplete={() => {
+            handleGameControlClose();
+          }}
+        />
+      )}
+      </div>
     </div>
   );
 }

@@ -103,18 +103,39 @@ export default function WeightGameComponent({
     }
   };
 
+  const calculatePoints = (rank: number, totalPlayers: number, isZeroRange: boolean): number => {
+    const maxPoints = Math.max(gameSettings.weightLimitFrom, gameSettings.weightLimitTo);
+    const minPoints = Math.min(gameSettings.weightLimitFrom, gameSettings.weightLimitTo);
+
+    // If weight range is 0, assign lowest points
+    if (isZeroRange) {
+      return minPoints;
+    }
+
+    // Mode 1: -1 per rank (1st = max, 2nd = max-1, etc)
+    const points = maxPoints - (rank - 1);
+    return Math.max(points, minPoints);
+  };
+
   const handleEndGame = async () => {
     setLoading(true);
     setError('');
     try {
       const results: any[] = [];
-      const withRanges = Object.values(playerWeights)
+      const allPlayerWeights = Object.values(playerWeights);
+      
+      // Separate players with weight ranges from those without
+      const withRanges = allPlayerWeights
         .filter((pw) => pw.startWeight !== null && pw.endWeight !== null)
         .map((pw) => ({
           ...pw,
           weightRange: pw.startWeight! - pw.endWeight!,
         }));
 
+      const withoutRanges = allPlayerWeights
+        .filter((pw) => pw.startWeight === null || pw.endWeight === null);
+
+      // Sort players with ranges
       const sorted = [...withRanges].sort((a, b) => {
         if (gameSettings.gameMode === 'most') {
           return b.weightRange! - a.weightRange!;
@@ -123,11 +144,14 @@ export default function WeightGameComponent({
         }
       });
 
-      sorted.forEach((entry, index) => {
+      // Separate zero range entries
+      const zeroRangeEntries = sorted.filter((e) => e.weightRange === 0);
+      const validRangeEntries = sorted.filter((e) => e.weightRange !== 0);
+
+      // Assign ranks and points to valid entries
+      validRangeEntries.forEach((entry, index) => {
         const rank = index + 1;
-        const points = entry.weightRange === 0 
-          ? Math.min(gameSettings.weightLimitFrom, gameSettings.weightLimitTo)
-          : index + 1;
+        const points = calculatePoints(rank, validRangeEntries.length, false);
 
         results.push({
           playerId: entry.playerId,
@@ -135,6 +159,31 @@ export default function WeightGameComponent({
           rank,
           pointsEarned: points,
           weightRange: entry.weightRange,
+        });
+      });
+
+      // Assign lowest points to zero range entries
+      const lowestRank = validRangeEntries.length + 1;
+      zeroRangeEntries.forEach((entry) => {
+        const lowestPoints = Math.min(gameSettings.weightLimitFrom, gameSettings.weightLimitTo);
+        results.push({
+          playerId: entry.playerId,
+          playerName: entry.playerName,
+          rank: lowestRank,
+          pointsEarned: lowestPoints,
+          weightRange: entry.weightRange,
+        });
+      });
+
+      // Assign lowest points to players without data
+      withoutRanges.forEach((entry) => {
+        const lowestPoints = Math.min(gameSettings.weightLimitFrom, gameSettings.weightLimitTo);
+        results.push({
+          playerId: entry.playerId,
+          playerName: entry.playerName,
+          rank: allPlayerWeights.length,
+          pointsEarned: lowestPoints,
+          weightRange: null,
         });
       });
 
