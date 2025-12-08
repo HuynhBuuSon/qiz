@@ -42,10 +42,40 @@ export default function AdminCreate() {
     setError('');
 
     try {
-      // TODO: Implement actual API call to create room
-      console.log('Creating room with:', formData);
+      // Validate required fields
+      if (!formData.gameName || !formData.joinPassCode || !formData.presentationPassCode) {
+        setError('Please fill in all required fields');
+        setLoading(false);
+        return;
+      }
+
+      // POST to /api/rooms
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.gameName,
+          mainColor: formData.mainColor,
+          colorFrom: formData.colorFrom,
+          colorTo: formData.colorTo,
+          maxPlayers: formData.maxPlayers,
+          pointMode: formData.pointMode === 'mode1' ? 1 : 2,
+          pointFrom: formData.pointFrom,
+          pointTo: formData.pointTo,
+          createdBy: '550e8400-e29b-41d4-a716-446655440000',
+          join_code: formData.joinPassCode,
+          presentation_code: formData.presentationPassCode,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create room');
+      }
       
-      // Mock success - redirect to admin home
+      const room = await response.json();
+      
+      // Redirect to admin home after successful creation
       router.push('/admin/home');
     } catch (err: any) {
       setError(err.message || 'Failed to create game');

@@ -23,16 +23,48 @@ export default function PlayerJoin() {
     setError('');
 
     try {
-      // TODO: Implement actual API call
       if (!playerName || !roomNumber || !joinCode) {
         setError('Please fill in all fields');
+        setLoading(false);
         return;
       }
 
-      // Mock join - replace with actual API call
-      setRoomId(roomNumber);
-      setPlayerId('player-' + Date.now());
+      // 1. Get all rooms and find matching room by code
+      const roomsResponse = await fetch('/api/rooms');
+      if (!roomsResponse.ok) throw new Error('Failed to fetch rooms');
       
+      const rooms = await roomsResponse.json();
+      const room = rooms.find((r: any) => r.join_code === joinCode || r.id === roomNumber);
+      
+      if (!room) {
+        setError('Invalid room code or room number');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Add player to room
+      const playerResponse = await fetch(
+        `/api/rooms/${room.id}/players`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: playerName }),
+        }
+      );
+
+      if (!playerResponse.ok) {
+        const errorData = await playerResponse.json();
+        throw new Error(errorData.error || 'Failed to join room');
+      }
+
+      const player = await playerResponse.json();
+
+      // 3. Store in Zustand + localStorage
+      setPlayerId(player.id);
+      setRoomId(room.id);
+      setCurrentRoom(room);
+
+      // Navigate to player home
       router.push('/player/game');
     } catch (err: any) {
       setError(err.message || 'Failed to join room');
