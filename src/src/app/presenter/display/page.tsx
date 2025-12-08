@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import useGameStore from '@/store/gameStore';
 import PresentationQRCode from '@/components/presenter/PresentationQRCode';
+import RandomGameComponent from '@/components/RandomGameComponent';
 
 export default function PresenterDisplay() {
   const currentRoom = useGameStore((state) => state.currentRoom);
@@ -118,8 +119,21 @@ export default function PresenterDisplay() {
           </div>
         </div>
 
+        {/* Active Game Component */}
+        {activeGame && activeGame.type === 'random' && (
+          <div className="mb-8">
+            <RandomGameComponent
+              gameId={activeGame.id}
+              roomId={currentRoom?.id || ''}
+              isAdmin={true}
+              currentStep={activeGame.status === 'active' ? 'spinning' : 'ended'}
+              onGameComplete={() => setActiveGame(null)}
+            />
+          </div>
+        )}
+
         {/* Active Game Status */}
-        {activeGame && (
+        {activeGame && activeGame.type !== 'random' && (
           <div className="mb-8 bg-blue-900/50 border-2 border-blue-500 rounded-lg p-6 text-center">
             <p className="text-xl font-semibold text-blue-200 mb-2">
               🎮 Active Game

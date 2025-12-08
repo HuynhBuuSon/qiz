@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { Home, Edit, Menu, Gamepad2 } from 'lucide-react';
+import WeightGameComponent from '@/components/WeightGameComponent';
+import RandomGameComponent from '@/components/RandomGameComponent';
 
 interface PlayerData {
   id: string;
@@ -323,64 +325,37 @@ export default function PlayerGame() {
 
         {activeTab === 'game' && (
           <div className="max-w-md mx-auto">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-2xl font-bold mb-6">Active Game</h2>
-
-              {activeGame ? (
-                <div className="space-y-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Game Type</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {activeGame.type === 'weight' ? '⚖️ Weight Game' : '🎡 Random Game'}
-                    </p>
+            {activeGame ? (
+              <>
+                {activeGame.type === 'weight' ? (
+                  <WeightGameComponent
+                    gameId={activeGame.id}
+                    roomId={roomId!}
+                    isAdmin={false}
+                    currentStep={activeGame.status === 'active' ? 'step1' : 'ended'}
+                    onGameComplete={() => setActiveGame(null)}
+                  />
+                ) : activeGame.type === 'random' ? (
+                  <RandomGameComponent
+                    gameId={activeGame.id}
+                    roomId={roomId!}
+                    isAdmin={false}
+                    currentStep={activeGame.status === 'active' ? 'spinning' : 'ended'}
+                    onGameComplete={() => setActiveGame(null)}
+                  />
+                ) : (
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-2xl font-bold mb-6">Game Status</h2>
+                    <p className="text-gray-600">Unknown game type</p>
                   </div>
-
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Status</p>
-                    <p className="text-lg font-semibold text-green-600">
-                      {activeGame.status === 'active' ? '🎮 In Progress' : activeGame.status}
-                    </p>
-                  </div>
-
-                  <div className="bg-purple-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Your Rank</p>
-                    <p className="text-3xl font-bold text-purple-600">
-                      {player?.isRankHidden ? '—' : `#${player?.rank || '—'}`}
-                    </p>
-                  </div>
-
-                  <div className="bg-yellow-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Your Score</p>
-                    <p className="text-3xl font-bold text-yellow-600">
-                      {player?.isScoreHidden ? '—' : player?.score || 0}
-                    </p>
-                  </div>
-
-                  {activeGame.type === 'weight' && (
-                    <div className="bg-amber-50 p-4 rounded-lg border-l-4 border-amber-400">
-                      <p className="text-sm text-gray-700">
-                        💡 Weight game is in progress. Check your weight submission status.
-                      </p>
-                    </div>
-                  )}
-
-                  {activeGame.type === 'random' && (
-                    <div className="bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-400">
-                      <p className="text-sm text-gray-700">
-                        🎡 Random spinner is active. Watch the presenter display!
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-600 text-lg mb-4">😴 No active game right now</p>
-                  <p className="text-gray-500 text-sm">
-                    Wait for the admin to start a game...
-                  </p>
-                </div>
-              )}
-            </div>
+                )}
+              </>
+            ) : (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-2xl font-bold mb-6">Active Game</h2>
+                <p className="text-gray-600 text-center">No active game at the moment</p>
+              </div>
+            )}
           </div>
         )}
       </div>

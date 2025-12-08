@@ -110,15 +110,32 @@ export async function calculateWeightGameResults(
         : calculatePointsMode2(r.rank, pointFrom, pointTo, entries.length),
     }));
 
-    // 5. Store results
+    // 5. Store results in game_results table
+    const resultsData = results.map(r => ({
+      playerId: r.playerId,
+      pointsEarned: r.points,
+      rank: r.rank,
+    }));
+
+    await fetch(
+      `/api/rooms/${roomId}/games/${gameId}/results`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ results: resultsData }),
+      }
+    );
+
+    // 6. Update player scores and ranks
     for (const result of results) {
+      const currentScore = await getPlayerScore(roomId, result.playerId);
       await fetch(
         `/api/rooms/${roomId}/players/${result.playerId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            score: (await getPlayerScore(roomId, result.playerId)) + result.points,
+            score: currentScore + result.points,
             rank: result.rank,
           }),
         }
