@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { Home, Gamepad2, Settings, LogOut } from 'lucide-react';
+import AdminDashboardHeader from '@/components/admin/AdminDashboardHeader';
 
 export default function AdminHome() {
   const router = useRouter();
@@ -39,7 +40,8 @@ export default function AdminHome() {
       <div className="flex-1 p-4 overflow-auto">
         {activeTab === 'home' && (
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-bold mb-6">Players Display</h2>
+            <AdminDashboardHeader />
+            <h2 className="text-2xl font-bold mb-6 mt-6">Players Display</h2>
             
             {players.length === 0 ? (
               <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">

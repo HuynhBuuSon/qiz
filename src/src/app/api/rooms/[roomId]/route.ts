@@ -4,14 +4,14 @@ import { query } from '@/lib/db/config';
 // Get room by ID
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ roomId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { roomId } = await params;
 
     const result = await query(
       'SELECT * FROM game_rooms WHERE id = $1',
-      [id]
+      [roomId]
     );
 
     if (result.rows.length === 0) {

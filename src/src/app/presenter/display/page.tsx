@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import useGameStore from '@/store/gameStore';
 import { getColorForRank } from '@/lib/utils/helpers';
+import PresentationQRCode from '@/components/presenter/PresentationQRCode';
 
 export default function PresenterDisplay() {
   const players = useGameStore((state) => state.players);
@@ -20,9 +21,24 @@ export default function PresenterDisplay() {
   return (
     <div className="min-h-screen w-full bg-gray-900 text-white p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 text-center">
-          {currentRoom?.name || 'Game Presentation'}
-        </h1>
+        {/* Header with Room Info */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-4 text-center">
+            {currentRoom?.name || 'Game Presentation'}
+          </h1>
+          
+          {/* QR Code for Join - Collapsible/Minimized for Projection */}
+          <div className="max-w-sm mx-auto mb-6">
+            <details className="bg-gray-800 rounded-lg p-4 cursor-pointer">
+              <summary className="text-lg font-semibold text-gray-300 hover:text-white transition-colors">
+                📱 Show QR Code to Join
+              </summary>
+              <div className="mt-4">
+                <PresentationQRCode />
+              </div>
+            </details>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedPlayers.map((player) => {

@@ -13,6 +13,8 @@ pool.on('error', (err) => {
 });
 
 export const query = (text: string, params?: any[]) => {
+    console.log(pool.options.host, pool.options.port, pool.options.database);
+    console.log('Executing query:', text, params);
   return pool.query(text, params);
 };
 
