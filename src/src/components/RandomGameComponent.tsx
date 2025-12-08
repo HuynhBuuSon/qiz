@@ -64,7 +64,7 @@ export default function RandomGameComponent({
         );
         if (winnersResponse.ok) {
           const winners = await winnersResponse.json();
-          previousWinners = winners.map((w: any) => w.playerId);
+          previousWinners = winners.map((w: any) => w.player_id);
         }
       }
 
@@ -73,6 +73,8 @@ export default function RandomGameComponent({
       
       if (available.length === 0) {
         setError('No available players left');
+        setSpinning(false);
+        setLoading(false);
         return;
       }
 
@@ -80,6 +82,20 @@ export default function RandomGameComponent({
       const randomIndex = Math.floor(Math.random() * available.length);
       const selectedId = available[randomIndex].id;
       const selectedPlayerData = players.find(p => p.id === selectedId);
+
+      // Record winner when spinning starts (before animation)
+      await fetch(
+        `/api/rooms/${roomId}/games/${gameId}/random/winner`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            playerId: selectedId,
+            action: 'selected',
+            pointsAwarded: 0,
+          }),
+        }
+      );
 
       // Animate spin
       const randomRotation = 360 * 5 + Math.random() * 360;
@@ -109,24 +125,7 @@ export default function RandomGameComponent({
         pointsToAdd = -gameSettings.pointAward;
       }
 
-      // Get current player score
-      const playerResponse = await fetch(
-        `/api/rooms/${roomId}/players/${selectedPlayer.id}`
-      );
-      const playerData = await playerResponse.json();
-      const currentScore = playerData.score || 0;
-
-      // Update player score
-      await fetch(
-        `/api/rooms/${roomId}/players/${selectedPlayer.id}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ score: currentScore + pointsToAdd }),
-        }
-      );
-
-      // Store winner record
+      // Update winner record with admin action and points
       await fetch(
         `/api/rooms/${roomId}/games/${gameId}/random/winner`,
         {
@@ -153,30 +152,47 @@ export default function RandomGameComponent({
   const handleEndGame = async () => {
     setLoading(true);
     try {
-      // Get all players and sort by score
+      // Get all winner records for this game
+      const winnersResponse = await fetch(
+        `/api/rooms/${roomId}/games/${gameId}/random/winners`
+      );
+      const winners = winnersResponse.ok ? await winnersResponse.json() : [];
+
+      // Get all players for reference
       const playersResponse = await fetch(`/api/rooms/${roomId}/players`);
       const allPlayers = await playersResponse.json();
-      const sorted = [...allPlayers].sort((a, b) => (b.score || 0) - (a.score || 0));
 
-      // Update ranks
-      for (let i = 0; i < sorted.length; i++) {
-        await fetch(
-          `/api/rooms/${roomId}/players/${sorted[i].id}`,
-          {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rank: i + 1 }),
-          }
-        );
-      }
+      // Calculate results: sum all points earned for each player
+      const playerPointsMap = new Map<string, number>();
+      winners.forEach((winner: any) => {
+        const current = playerPointsMap.get(winner.player_id) || 0;
+        playerPointsMap.set(winner.player_id, current + winner.points_awarded);
+      });
 
-      // Update game status
+      // Build results array
+      const results = allPlayers.map((player: any) => ({
+        playerId: player.id,
+        pointsEarned: playerPointsMap.get(player.id) || 0,
+        rank: 0, // Will be calculated by API
+      }));
+
+      // Step 1: Update game status to completed
       await fetch(
         `/api/rooms/${roomId}/games/${gameId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'completed' }),
+        }
+      );
+
+      // Step 2: Save results and update player points/ranks
+      await fetch(
+        `/api/rooms/${roomId}/games/${gameId}/results`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results }),
         }
       );
 

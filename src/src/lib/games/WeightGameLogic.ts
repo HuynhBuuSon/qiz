@@ -123,50 +123,63 @@ export class WeightGameLogic extends BaseGame {
   }
 
   /**
-   * Calculate weight range (start - end)
+   * Calculate weight range (start weight - end weight = weight lost)
+   * Positive value = weight lost (player got lighter)
+   * Negative value = weight gained (player got heavier)
+   * Zero = no change
    */
   private calculateWeightRange(): void {
     this.entries.forEach((entry) => {
       if (entry.startWeight !== null && entry.endWeight !== null) {
-        entry.weightRange = entry.startWeight - entry.endWeight;
+        entry.weightRange = entry.endWeight - entry.startWeight;
       }
     });
   }
 
   /**
    * Rank players based on game mode (most/least weight lost)
+   * Then calculate points based on Point Mode
+   * Players with zero weight range get the lowest points
    */
   private rankPlayers(): void {
     const entries = Array.from(this.entries.values()).filter((e) => e.weightRange !== null);
 
     if (entries.length === 0) return;
 
-    // Sort based on game mode
-    if (this.settings.gameMode === 'most') {
-      // Sort descending (most weight lost first)
-      entries.sort((a, b) => (b.weightRange || 0) - (a.weightRange || 0));
-    } else {
-      // Sort ascending (least weight lost first, i.e., smallest number)
-      entries.sort((a, b) => (a.weightRange || 0) - (b.weightRange || 0));
-    }
-
-    // Handle zero weight range (all get lowest points)
-    const zeroRangeEntries = entries.filter((e) => e.weightRange === 0);
+    // Separate valid entries from zero-range entries
     const validEntries = entries.filter((e) => e.weightRange !== 0 && e.weightRange !== null);
+    const zeroRangeEntries = entries.filter((e) => e.weightRange === 0);
+
+    // Sort valid entries based on game mode
+    if (this.settings.gameMode === 'most') {
+      // Most weight lost: sort by weight range descending (most first)
+      validEntries.sort((a, b) => (b.weightRange || 0) - (a.weightRange || 0));
+    } else {
+      // Least weight lost: sort by weight range ascending (least first)
+      validEntries.sort((a, b) => (a.weightRange || 0) - (b.weightRange || 0));
+    }
 
     let rank = 1;
 
-    // Assign ranks to valid entries
+    // Assign ranks and points to valid entries
     validEntries.forEach((entry) => {
       entry.rank = rank;
-      entry.pointsEarned = this.calculatePoints(rank, this.entries.size);
+      entry.pointsEarned = this.calculatePoints(rank, validEntries.length);
       rank++;
     });
 
-    // Assign lowest points to zero range entries
+    // Assign zero-range entries to lowest rank with minimum points
+    const minPoints = Math.min(this.settings.pointFrom, this.settings.pointTo);
     zeroRangeEntries.forEach((entry) => {
-      entry.rank = this.entries.size; // Last rank
-      entry.pointsEarned = Math.min(this.settings.pointFrom, this.settings.pointTo);
+      entry.rank = validEntries.length + 1; // After all valid entries
+      entry.pointsEarned = minPoints; // Lowest points
+    });
+
+    // Handle players with no data (no start or end weight)
+    const noDataEntries = Array.from(this.entries.values()).filter((e) => e.weightRange === null);
+    noDataEntries.forEach((entry) => {
+      entry.rank = validEntries.length + zeroRangeEntries.length + 1; // Last rank
+      entry.pointsEarned = minPoints; // Lowest points
     });
   }
 
@@ -179,18 +192,29 @@ export class WeightGameLogic extends BaseGame {
   }
 
   /**
-   * End game and calculate results
+   * End game and calculate final results
+   * 1. Calculate weight range (start - end) for each player
+   * 2. Rank players by weight range based on game mode
+   * 3. Calculate points based on rank and point mode
+   * 4. Players with zero weight range get lowest points
+   * 5. Build results for display on admin and presenter screens
    */
   async endGame(): Promise<GameResult[]> {
+    // Step 1: Calculate weight changes
     this.calculateWeightRange();
+
+    // Step 2-4: Rank and calculate points
     this.rankPlayers();
 
-    this.results = Array.from(this.entries.values()).map((entry) => ({
-      playerId: entry.playerId,
-      playerName: entry.playerName,
-      pointsEarned: entry.pointsEarned,
-      rank: entry.rank || this.entries.size,
-    }));
+    // Step 5: Build final results sorted by rank
+    this.results = Array.from(this.entries.values())
+      .sort((a, b) => (a.rank || 999) - (b.rank || 999))
+      .map((entry) => ({
+        playerId: entry.playerId,
+        playerName: entry.playerName,
+        pointsEarned: entry.pointsEarned,
+        rank: entry.rank || 999,
+      }));
 
     return this.getResults();
   }

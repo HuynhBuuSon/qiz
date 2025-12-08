@@ -73,7 +73,7 @@ export async function PUT(
   { params }: { params: Promise<{ roomId: string; gameId: string }> }
 ) {
   try {
-    const { gameId } = await params;
+    const { roomId, gameId } = await params;
     const body = await req.json();
     const { results } = body; // Array of { playerId, pointsEarned, rank }
 
@@ -85,6 +85,8 @@ export async function PUT(
     }
 
     const insertedResults = [];
+    
+    // Step 1: Save game results
     for (const result of results) {
       const { playerId, pointsEarned, rank } = result;
       
@@ -104,7 +106,45 @@ export async function PUT(
       insertedResults.push(res.rows[0]);
     }
 
-    return NextResponse.json(insertedResults);
+    // Step 2: Update player global points and calculate new global rank
+    for (const result of results) {
+      const { playerId, pointsEarned } = result;
+      
+      if (!playerId || pointsEarned === undefined) continue;
+
+      // Update player's score by adding game points
+      await query(
+        `UPDATE players 
+         SET score = COALESCE(score, 0) + $1
+         WHERE id = $2 AND room_id = $3`,
+        [pointsEarned, playerId, roomId]
+      );
+    }
+
+    // Step 3: Recalculate global ranks for all players in the room
+    // Get all players sorted by score (descending)
+    const rankingResult = await query(
+      `SELECT id FROM players 
+       WHERE room_id = $1 
+       ORDER BY score DESC, joined_at ASC`,
+      [roomId]
+    );
+
+    // Update rank for each player
+    for (let i = 0; i < rankingResult.rows.length; i++) {
+      const player = rankingResult.rows[i];
+      await query(
+        `UPDATE players 
+         SET rank = $1 
+         WHERE id = $2`,
+        [i + 1, player.id]
+      );
+    }
+
+    return NextResponse.json({
+      message: 'Game results saved and player points updated',
+      results: insertedResults,
+    });
   } catch (error: any) {
     console.error('Error creating batch game results:', error);
     return NextResponse.json(

@@ -35,7 +35,7 @@ export default function GameSettingsModal({
 
   // Random game specific
   const [pointAward, setPointAward] = useState(10);
-  const [isRepeat, setIsRepeat] = useState(false);
+  const [isRepeat, setIsRepeat] = useState(true);
 
   const handleSave = () => {
     const settings: any = {
@@ -167,7 +167,7 @@ export default function GameSettingsModal({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Weight From
+                      Weight Limit From
                     </label>
                     <input
                       type="number"
@@ -178,7 +178,7 @@ export default function GameSettingsModal({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Weight To
+                      Weight Limit To
                     </label>
                     <input
                       type="number"
@@ -228,25 +228,33 @@ export default function GameSettingsModal({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Point Award
+                    <span className="text-xs text-gray-500 ml-1">(Points to award per selection, 0 = no award)</span>
                   </label>
                   <input
                     type="number"
                     value={pointAward}
-                    onChange={(e) => setPointAward(parseInt(e.target.value))}
+                    onChange={(e) => setPointAward(parseInt(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={isRepeat}
                     onChange={(e) => setIsRepeat(e.target.checked)}
-                    className="w-4 h-4"
+                    className="w-4 h-4 rounded"
                   />
-                  <span className="text-sm font-medium text-gray-700">
-                    Allow Player Repeat (same player can be selected multiple times)
-                  </span>
+                  <div>
+                    <span className="font-medium text-gray-700 block">
+                      Allow Repeat Selection
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      If checked: same player can be selected multiple times
+                      <br />
+                      If unchecked: selected players are blurred and excluded
+                    </span>
+                  </div>
                 </label>
               </div>
             </div>

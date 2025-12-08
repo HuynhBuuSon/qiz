@@ -187,16 +187,38 @@ export default function WeightGameComponent({
         });
       });
 
-      const response = await fetch(`/api/rooms/${roomId}/games/${gameId}`, {
+      // Step 1: Update game status to 'completed'
+      const statusResponse = await fetch(`/api/rooms/${roomId}/games/${gameId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'completed',
-          results,
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to end game');
+      if (!statusResponse.ok) {
+        throw new Error('Failed to update game status');
+      }
+
+      // Step 2: Save results to game_results table using PUT
+      const resultsResponse = await fetch(
+        `/api/rooms/${roomId}/games/${gameId}/results`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            results: results.map((r) => ({
+              playerId: r.playerId,
+              pointsEarned: r.pointsEarned,
+              rank: r.rank,
+            })),
+          }),
+        }
+      );
+
+      if (!resultsResponse.ok) {
+        throw new Error('Failed to save game results');
+      }
 
       setSuccess('Game ended! Points calculated and updated.');
       onGameComplete?.();
