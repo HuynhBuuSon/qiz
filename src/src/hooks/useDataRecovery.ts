@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
+import { useRealTimeUpdates } from './useRealTimeUpdates';
 
 /**
  * Hook to handle data recovery from localStorage on page refresh
@@ -50,38 +51,37 @@ export function useRoomDataSync(shouldAutoRefresh: boolean = true) {
   const roomId = useGameStore((state) => state.roomId);
   const currentRoom = useGameStore((state) => state.currentRoom);
   const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
-  const toCamelCase = async (obj: any) => {
-    // Dynamic import to avoid circular dependency
-    const { toCamelCase: convert } = await import('@/lib/utils/helpers');
-    return convert(obj);
-  };
 
-  useEffect(() => {
-    if (!roomId && !currentRoom?.id) {
-      return;
-    }
+  const fetchAndUpdateRoom = useCallback(async () => {
+    try {
+      const id = roomId || currentRoom?.id;
+      if (!id) return;
 
-    const fetchAndUpdateRoom = async () => {
-      try {
-        const id = roomId || currentRoom?.id;
-        const response = await fetch(`/api/rooms/${id}`);
-        if (response.ok) {
-          const data = await response.json();
-          const converted = await toCamelCase(data);
-          setCurrentRoom(converted);
-        }
-      } catch (err) {
-        console.error('Failed to sync room data:', err);
+      const response = await fetch(`/api/rooms/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Import dynamically to avoid circular dependency
+        const { toCamelCase } = await import('@/lib/utils/helpers');
+        const converted = toCamelCase(data);
+        setCurrentRoom(converted);
       }
-    };
-
-    // Fetch on mount to ensure fresh data
-    fetchAndUpdateRoom();
-
-    if (shouldAutoRefresh) {
-      // Set up periodic refresh
-      const interval = setInterval(fetchAndUpdateRoom, 5000); // Refresh every 5 seconds
-      return () => clearInterval(interval);
+    } catch (err) {
+      console.error('Failed to sync room data:', err);
     }
-  }, [roomId, currentRoom?.id, setCurrentRoom, shouldAutoRefresh, toCamelCase]);
+  }, [roomId, currentRoom?.id, setCurrentRoom]);
+
+  // Initial fetch
+  useEffect(() => {
+    if (!roomId && !currentRoom?.id) return;
+    fetchAndUpdateRoom();
+  }, [roomId, currentRoom?.id, fetchAndUpdateRoom]);
+
+  // Real-time updates using WebSocket with fallback to polling
+  useRealTimeUpdates({
+    roomId: roomId || currentRoom?.id,
+    eventName: 'room:update',
+    fetchCallback: fetchAndUpdateRoom,
+    pollingInterval: 5000,
+    enabled: Boolean(shouldAutoRefresh && (roomId || currentRoom?.id)),
+  });
 }

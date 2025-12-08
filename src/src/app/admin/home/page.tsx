@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
+import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase } from '@/lib/utils/helpers';
 import { Home, Gamepad2, Settings, LogOut } from 'lucide-react';
 import AdminDashboardHeader from '@/components/admin/AdminDashboardHeader';
@@ -27,28 +28,7 @@ export default function AdminHome() {
   const [games, setGames] = useState<any[]>([]);
   const [loadingGames, setLoadingGames] = useState(false);
 
-  useEffect(() => {
-    if (!isReady) return;
-    
-    if (!currentRoom?.id) {
-      router.push('/admin/create');
-      return;
-    }
-
-    loadPlayers();
-    loadActiveGame();
-    loadGames();
-    
-    const interval = setInterval(() => {
-      loadPlayers();
-      loadActiveGame();
-      loadGames();
-    }, 2000); // Refresh every 2 seconds
-    
-    return () => clearInterval(interval);
-  }, [isReady, currentRoom?.id, router]);
-
-  const loadPlayers = async () => {
+  const loadPlayers = useCallback(async () => {
     try {
       const response = await fetch(`/api/rooms/${currentRoom?.id}/players`);
       if (!response.ok) throw new Error('Failed to load players');
@@ -60,9 +40,9 @@ export default function AdminHome() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentRoom?.id]);
 
-  const loadGames = async () => {
+  const loadGames = useCallback(async () => {
     try {
       setLoadingGames(true);
       const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
@@ -74,9 +54,9 @@ export default function AdminHome() {
     } finally {
       setLoadingGames(false);
     }
-  };
+  }, [currentRoom?.id]);
 
-  const loadActiveGame = async () => {
+  const loadActiveGame = useCallback(async () => {
     try {
       const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
       if (!response.ok) return;
@@ -88,7 +68,47 @@ export default function AdminHome() {
     } catch (err: any) {
       console.error('Failed to load games:', err);
     }
-  };
+  }, [currentRoom?.id]);
+
+  // Set up real-time updates after all functions are defined
+  useEffect(() => {
+    if (!isReady || !currentRoom?.id) {
+      router.push('/admin/create');
+      return;
+    }
+
+    // Initial load
+    loadPlayers();
+    loadActiveGame();
+    loadGames();
+  }, [isReady, currentRoom?.id, router, loadPlayers, loadActiveGame, loadGames]);
+
+  // Real-time updates for players
+  useRealTimeUpdates({
+    roomId: currentRoom?.id,
+    eventName: 'players:update',
+    fetchCallback: loadPlayers,
+    pollingInterval: 2000,
+    enabled: Boolean(isReady && currentRoom?.id),
+  });
+
+  // Real-time updates for games
+  useRealTimeUpdates({
+    roomId: currentRoom?.id,
+    eventName: 'games:update',
+    fetchCallback: loadGames,
+    pollingInterval: 2000,
+    enabled: Boolean(isReady && currentRoom?.id),
+  });
+
+  // Real-time updates for active game
+  useRealTimeUpdates({
+    roomId: currentRoom?.id,
+    eventName: 'game:active',
+    fetchCallback: loadActiveGame,
+    pollingInterval: 2000,
+    enabled: Boolean(isReady && currentRoom?.id),
+  });
 
   const handleAddGame = async () => {
     try {

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
+import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase } from '@/lib/utils/helpers';
 import PresentationQRCode from '@/components/presenter/PresentationQRCode';
 import RandomGameComponent from '@/components/RandomGameComponent';
@@ -16,6 +17,34 @@ export default function PresenterDisplay() {
   const [activeGame, setActiveGame] = useState<any>(null);
   const [showQR, setShowQR] = useState(false);
 
+  const loadPlayers = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/rooms/${currentRoom?.id}/players`);
+      if (response.ok) {
+        const data = await response.json();
+        setPlayers(Array.isArray(data) ? data.map(toCamelCase) : []);
+      }
+    } catch (error) {
+      console.error('Failed to load players:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentRoom?.id]);
+
+  const loadActiveGame = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
+      if (response.ok) {
+        const games = await response.json();
+        const gamesArray = Array.isArray(games) ? games.map(toCamelCase) : [];
+        const active = gamesArray.find((g: any) => g.status === 'active');
+        setActiveGame(active || null);
+      }
+    } catch (error) {
+      console.error('Failed to load games:', error);
+    }
+  }, [currentRoom?.id]);
+
   useEffect(() => {
     if (!isReady) return;
     
@@ -25,42 +54,27 @@ export default function PresenterDisplay() {
       return;
     }
 
-    const loadPlayers = async () => {
-      try {
-        const response = await fetch(`/api/rooms/${currentRoom.id}/players`);
-        if (response.ok) {
-          const data = await response.json();
-          setPlayers(Array.isArray(data) ? data.map(toCamelCase) : []);
-        }
-      } catch (error) {
-        console.error('Failed to load players:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const loadActiveGame = async () => {
-      try {
-        const response = await fetch(`/api/rooms/${currentRoom.id}/games`);
-        if (response.ok) {
-          const games = await response.json();
-          const gamesArray = Array.isArray(games) ? games.map(toCamelCase) : [];
-          const active = gamesArray.find((g: any) => g.status === 'active');
-          setActiveGame(active || null);
-        }
-      } catch (error) {
-        console.error('Failed to load games:', error);
-      }
-    };
-
     loadPlayers();
     loadActiveGame();
-    const interval = setInterval(() => {
-      loadPlayers();
-      loadActiveGame();
-    }, 1000); // Update every 1 second
-    return () => clearInterval(interval);
-  }, [isReady, currentRoom?.id, router]);
+  }, [isReady, currentRoom?.id, router, loadPlayers, loadActiveGame]);
+
+  // Real-time updates for players
+  useRealTimeUpdates({
+    roomId: currentRoom?.id,
+    eventName: 'players:update',
+    fetchCallback: loadPlayers,
+    pollingInterval: 1000, // Faster refresh for presenter
+    enabled: Boolean(isReady && currentRoom?.id),
+  });
+
+  // Real-time updates for active game
+  useRealTimeUpdates({
+    roomId: currentRoom?.id,
+    eventName: 'game:active',
+    fetchCallback: loadActiveGame,
+    pollingInterval: 1000,
+    enabled: Boolean(isReady && currentRoom?.id),
+  });
 
   // Calculate gradient color based on rank
   const getPlayerColor = (rank: number, totalPlayers: number) => {

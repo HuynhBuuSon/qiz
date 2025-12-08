@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
+import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase } from '@/lib/utils/helpers';
 import { Home, Edit, Menu, Gamepad2 } from 'lucide-react';
 import WeightGameComponent from '@/components/WeightGameComponent';
@@ -35,70 +36,88 @@ export default function PlayerGame() {
   const roomId = useGameStore((state) => state.roomId);
 
   // Fetch player data
+  const fetchPlayerData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `/api/rooms/${roomId}/players/${playerId}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch player');
+      const data = await response.json();
+      const camelData = toCamelCase(data);
+      setPlayer(camelData);
+      setEditData(camelData);
+    } catch (error) {
+      console.error('Error fetching player:', error);
+      setMessage('Error loading player data');
+    } finally {
+      setLoading(false);
+    }
+  }, [roomId, playerId]);
+
+  const fetchActiveGame = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/games`);
+      if (!response.ok) return;
+      const games = await response.json();
+      const gamesArray = Array.isArray(games) ? games.map(toCamelCase) : [];
+      const active = gamesArray.find((g: any) => g.status === 'active');
+      setActiveGame(active || null);
+    } catch (error) {
+      console.error('Error fetching games:', error);
+    }
+  }, [roomId]);
+
+  const fetchRoomPlayers = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/players`);
+      if (!response.ok) return;
+      const players = await response.json();
+      setRoomPlayers(Array.isArray(players) ? players.map(toCamelCase) : []);
+    } catch (error) {
+      console.error('Error fetching players:', error);
+    }
+  }, [roomId]);
+
+  // Initialize data on mount
   useEffect(() => {
-    if (!isReady) return;
-    
-    if (!roomId || !playerId) {
+    if (!isReady || !roomId || !playerId) {
+      if (!isReady) return;
       router.push('/player/join');
       return;
     }
 
-    const fetchPlayerData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(
-          `/api/rooms/${roomId}/players/${playerId}`
-        );
-        if (!response.ok) throw new Error('Failed to fetch player');
-        const data = await response.json();
-        const camelData = toCamelCase(data);
-        setPlayer(camelData);
-        setEditData(camelData);
-      } catch (error) {
-        console.error('Error fetching player:', error);
-        setMessage('Error loading player data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchActiveGame = async () => {
-      try {
-        const response = await fetch(`/api/rooms/${roomId}/games`);
-        if (!response.ok) return;
-        const games = await response.json();
-        const gamesArray = Array.isArray(games) ? games.map(toCamelCase) : [];
-        const active = gamesArray.find((g: any) => g.status === 'active');
-        setActiveGame(active || null);
-      } catch (error) {
-        console.error('Error fetching games:', error);
-      }
-    };
-
-    const fetchRoomPlayers = async () => {
-      try {
-        const response = await fetch(`/api/rooms/${roomId}/players`);
-        if (!response.ok) return;
-        const players = await response.json();
-        setRoomPlayers(Array.isArray(players) ? players.map(toCamelCase) : []);
-      } catch (error) {
-        console.error('Error fetching players:', error);
-      }
-    };
-
     fetchPlayerData();
     fetchActiveGame();
     fetchRoomPlayers();
-    
-    // Auto-refresh every 2 seconds
-    const interval = setInterval(() => {
-      fetchPlayerData();
-      fetchActiveGame();
-      fetchRoomPlayers();
-    }, 2000);
-    
-    return () => clearInterval(interval);
-  }, [isReady, roomId, playerId, router]);
+  }, [isReady, roomId, playerId, router, fetchPlayerData, fetchActiveGame, fetchRoomPlayers]);
+
+  // Real-time updates for player data
+  useRealTimeUpdates({
+    roomId: roomId,
+    eventName: `player:${playerId}:update`,
+    fetchCallback: fetchPlayerData,
+    pollingInterval: 2000,
+    enabled: Boolean(isReady && roomId && playerId),
+  });
+
+  // Real-time updates for active game
+  useRealTimeUpdates({
+    roomId: roomId,
+    eventName: 'game:active',
+    fetchCallback: fetchActiveGame,
+    pollingInterval: 2000,
+    enabled: Boolean(isReady && roomId && playerId),
+  });
+
+  // Real-time updates for room players
+  useRealTimeUpdates({
+    roomId: roomId,
+    eventName: 'players:update',
+    fetchCallback: fetchRoomPlayers,
+    pollingInterval: 2000,
+    enabled: Boolean(isReady && roomId && playerId),
+  });
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
