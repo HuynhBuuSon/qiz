@@ -3,6 +3,23 @@ import { query } from '@/lib/db/config';
 import { generateCode } from '@/lib/utils/helpers';
 import { v4 as uuidv4 } from 'uuid';
 
+// Get all game rooms
+export async function GET() {
+  try {
+    const result = await query(
+      'SELECT * FROM game_rooms ORDER BY created_at DESC'
+    );
+
+    return NextResponse.json(result.rows);
+  } catch (error: any) {
+    console.error('Error fetching rooms:', error);
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 // Create a new game room
 export async function POST(req: NextRequest) {
   try {
