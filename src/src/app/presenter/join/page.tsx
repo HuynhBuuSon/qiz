@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import useGameStore from '@/store/gameStore';
+import { toCamelCase } from '@/lib/utils/helpers';
 
 export default function PresenterJoin() {
   const router = useRouter();
@@ -70,8 +71,9 @@ export default function PresenterJoin() {
         return;
       }
 
-      // Store room data
-      setCurrentRoom(room);
+      // Convert and store room data
+      const convertedRoom = toCamelCase(room);
+      setCurrentRoom(convertedRoom);
 
       // Redirect to presentation display
       router.push('/presenter/display');

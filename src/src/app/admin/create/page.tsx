@@ -2,10 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import useGameStore from '@/store/gameStore';
+import { toCamelCase } from '@/lib/utils/helpers';
 import { ArrowLeft } from 'lucide-react';
 
 export default function AdminCreate() {
   const router = useRouter();
+  const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
   const [formData, setFormData] = useState({
     gameName: '',
     mainColor: '#3b82f6',
@@ -107,7 +110,7 @@ export default function AdminCreate() {
           colorFrom: formData.colorFrom,
           colorTo: formData.colorTo,
           maxPlayers: formData.maxPlayers,
-          pointMode: formData.pointMode === 'mode1' ? 1 : 2,
+          pointMode: formData.pointMode,
           pointFrom: formData.pointFrom,
           pointTo: formData.pointTo,
           createdBy: '550e8400-e29b-41d4-a716-446655440000',
@@ -122,6 +125,12 @@ export default function AdminCreate() {
       }
       
       const room = await response.json();
+      
+      // Convert snake_case to camelCase
+      const convertedRoom = toCamelCase(room);
+      
+      // Save room to store
+      setCurrentRoom(convertedRoom);
       
       // Redirect to admin home after successful creation
       router.push('/admin/home');

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
+import { toCamelCase } from '@/lib/utils/helpers';
 import { ArrowLeft } from 'lucide-react';
 
 export default function PlayerJoin() {
@@ -61,16 +62,19 @@ export default function PlayerJoin() {
         return;
       }
 
+      // Convert room data to camelCase
+      const convertedRoom = toCamelCase(room);
+      
       // Check if room is full
-      if (room.currentPlayers >= room.maxPlayers) {
-        setError(`Room is full (${room.maxPlayers} players max)`);
+      if (convertedRoom.currentPlayers >= convertedRoom.maxPlayers) {
+        setError(`Room is full (${convertedRoom.maxPlayers} players max)`);
         setLoading(false);
         return;
       }
 
       // 2. Add player to room
       const playerResponse = await fetch(
-        `/api/rooms/${room.id}/players`,
+        `/api/rooms/${convertedRoom.id}/players`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -87,8 +91,8 @@ export default function PlayerJoin() {
 
       // 3. Store in Zustand + localStorage
       setPlayerId(player.id);
-      setRoomId(room.id);
-      setCurrentRoom(room);
+      setRoomId(convertedRoom.id);
+      setCurrentRoom(convertedRoom);
 
       // Navigate to player home
       router.push('/player/game');

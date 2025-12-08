@@ -11,6 +11,7 @@ export default function AdminGames() {
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [addingGame, setAddingGame] = useState(false);
 
   useEffect(() => {
     if (currentRoom?.id) {
@@ -91,6 +92,35 @@ export default function AdminGames() {
     }
   };
 
+  const handleAddGame = async () => {
+    try {
+      setAddingGame(true);
+      setError('');
+
+      // Create a new game with default settings
+      const response = await fetch(
+        `/api/rooms/${currentRoom?.id}/games`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: `Game ${games.length + 1}`,
+            type: 'weight', // Default to weight game
+            status: 'pending',
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to add game');
+      
+      await loadGames();
+    } catch (err: any) {
+      setError(err.message || 'Failed to add game');
+    } finally {
+      setAddingGame(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending: '#154c79',
@@ -144,10 +174,11 @@ export default function AdminGames() {
         )}
 
         <button
-          onClick={() => router.push('/admin/create')}
-          className="mb-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          onClick={handleAddGame}
+          disabled={addingGame}
+          className="mb-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
         >
-          + Add Game
+          {addingGame ? 'Adding...' : '+ Add Game'}
         </button>
 
         {games.length === 0 ? (

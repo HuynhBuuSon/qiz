@@ -1,3 +1,18 @@
+// Convert snake_case to camelCase for API responses
+export const toCamelCase = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(item => toCamelCase(item));
+  } else if (obj !== null && typeof obj === 'object') {
+    const result: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+      result[camelKey] = toCamelCase(value);
+    }
+    return result;
+  }
+  return obj;
+};
+
 export const generateCode = (length: number = 6): string => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';

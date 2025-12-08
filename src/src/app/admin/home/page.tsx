@@ -21,14 +21,18 @@ export default function AdminHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeGame, setActiveGame] = useState<any>(null);
+  const [games, setGames] = useState<any[]>([]);
+  const [loadingGames, setLoadingGames] = useState(false);
 
   useEffect(() => {
     if (currentRoom?.id) {
       loadPlayers();
       loadActiveGame();
+      loadGames();
       const interval = setInterval(() => {
         loadPlayers();
         loadActiveGame();
+        loadGames();
       }, 2000); // Refresh every 2 seconds
       return () => clearInterval(interval);
     }
@@ -48,6 +52,20 @@ export default function AdminHome() {
     }
   };
 
+  const loadGames = async () => {
+    try {
+      setLoadingGames(true);
+      const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
+      if (!response.ok) throw new Error('Failed to load games');
+      const data = await response.json();
+      setGames(data);
+    } catch (err: any) {
+      console.error('Error loading games:', err);
+    } finally {
+      setLoadingGames(false);
+    }
+  };
+
   const loadActiveGame = async () => {
     try {
       const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
@@ -58,6 +76,67 @@ export default function AdminHome() {
       setActiveGame(active || null);
     } catch (err: any) {
       console.error('Failed to load games:', err);
+    }
+  };
+
+  const handleAddGame = async () => {
+    try {
+      const response = await fetch(`/api/rooms/${currentRoom?.id}/games`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `Game ${games.length + 1}`,
+          type: 'weight',
+          status: 'pending',
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to add game');
+      loadGames();
+    } catch (err: any) {
+      setError(err.message || 'Failed to add game');
+    }
+  };
+
+  const handleStartGame = async (gameId: string) => {
+    try {
+      const response = await fetch(`/api/rooms/${currentRoom?.id}/games/${gameId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'active' }),
+      });
+      if (!response.ok) throw new Error('Failed to start game');
+      loadGames();
+      loadActiveGame();
+    } catch (err: any) {
+      setError(err.message || 'Failed to start game');
+    }
+  };
+
+  const handleEndGame = async (gameId: string) => {
+    try {
+      const response = await fetch(`/api/rooms/${currentRoom?.id}/games/${gameId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'completed' }),
+      });
+      if (!response.ok) throw new Error('Failed to end game');
+      loadGames();
+      loadActiveGame();
+    } catch (err: any) {
+      setError(err.message || 'Failed to end game');
+    }
+  };
+
+  const handleDeleteGame = async (gameId: string) => {
+    if (!window.confirm('Are you sure you want to delete this game?')) return;
+    try {
+      const response = await fetch(`/api/rooms/${currentRoom?.id}/games/${gameId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete game');
+      loadGames();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete game');
     }
   };
 
@@ -217,54 +296,289 @@ export default function AdminHome() {
         )}
 
         {activeTab === 'games' && (
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold mb-6">Games Management</h2>
+            
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                {error}
+              </div>
+            )}
+
             <button
-              onClick={() => router.push('/admin/games')}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={handleAddGame}
+              className="mb-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
-              Go to Games
+              + Add Game
             </button>
+
+            {loadingGames ? (
+              <div className="text-center text-gray-500">Loading games...</div>
+            ) : games.length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                No games yet. Create a game to get started.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {games.map((game) => (
+                  <div
+                    key={game.id}
+                    className="bg-white rounded-lg shadow overflow-hidden hover:shadow-md transition-shadow"
+                  >
+                    <div
+                      className="h-1"
+                      style={{
+                        backgroundColor:
+                          game.status === 'active'
+                            ? '#147834'
+                            : game.status === 'completed'
+                            ? '#7e3c3c'
+                            : '#154c79',
+                      }}
+                    ></div>
+                    <div className="p-6 flex items-center justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-semibold text-gray-800">
+                          {game.name}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Type: <span className="font-medium">{game.type}</span> • 
+                          Status: <span className="font-medium capitalize">{game.status}</span>
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        {game.status === 'pending' && (
+                          <button
+                            onClick={() => handleStartGame(game.id)}
+                            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium transition-colors"
+                          >
+                            Start
+                          </button>
+                        )}
+                        {game.status === 'active' && (
+                          <button
+                            onClick={() => handleEndGame(game.id)}
+                            className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm font-medium transition-colors"
+                          >
+                            End
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteGame(game.id)}
+                          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'settings' && (
           <div className="max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold mb-6">Settings</h2>
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Room Name
-                  </label>
-                  <input
-                    type="text"
-                    value={currentRoom?.name || ''}
-                    disabled
-                    className="w-full px-3 py-2 border rounded bg-gray-100"
-                  />
+            <h2 className="text-2xl font-bold mb-6">Room Settings</h2>
+            <div className="bg-white rounded-lg shadow p-6 space-y-6">
+              {/* Room Information */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 text-gray-800">Room Information</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Room Name
+                    </label>
+                    <input
+                      type="text"
+                      value={currentRoom?.name || ''}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Room ID
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={currentRoom?.id || ''}
+                        disabled
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600 text-sm font-mono"
+                      />
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(currentRoom?.id || '');
+                          alert('Room ID copied!');
+                        }}
+                        className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Join Code
-                  </label>
-                  <input
-                    type="text"
-                    value={currentRoom?.joinCode || ''}
-                    disabled
-                    className="w-full px-3 py-2 border rounded bg-gray-100"
-                  />
+              </div>
+
+              {/* Access Codes */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 text-gray-800">Access Codes</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Join Code (for Players)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={currentRoom?.joinCode || ''}
+                        disabled
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600 font-mono"
+                      />
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(currentRoom?.joinCode || '');
+                          alert('Join code copied!');
+                        }}
+                        className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Presentation Code (for Presenters)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={currentRoom?.presentationCode || ''}
+                        disabled
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600 font-mono"
+                      />
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(currentRoom?.presentationCode || '');
+                          alert('Presentation code copied!');
+                        }}
+                        className="px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Presentation Code
-                  </label>
-                  <input
-                    type="text"
-                    value={currentRoom?.presentationCode || ''}
-                    disabled
-                    className="w-full px-3 py-2 border rounded bg-gray-100"
-                  />
+              </div>
+
+              {/* Game Configuration */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 text-gray-800">Game Configuration</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Players
+                    </label>
+                    <input
+                      type="number"
+                      value={currentRoom?.maxPlayers || 0}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Point Mode
+                    </label>
+                    <input
+                      type="text"
+                      value={currentRoom?.pointMode === 'mode1' ? 'Mode 1 (Linear)' : 'Mode 2 (Proportional)'}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Points From
+                    </label>
+                    <input
+                      type="number"
+                      value={currentRoom?.pointFrom || 0}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Points To
+                    </label>
+                    <input
+                      type="number"
+                      value={currentRoom?.pointTo || 0}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Color Settings */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 text-gray-800">Color Settings</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Main Color
+                    </label>
+                    <div
+                      className="w-full h-12 rounded border-2"
+                      style={{ backgroundColor: currentRoom?.mainColor || '#3b82f6' }}
+                    ></div>
+                    <p className="text-xs text-gray-600 mt-1">{currentRoom?.mainColor}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Color From
+                    </label>
+                    <div
+                      className="w-full h-12 rounded border-2"
+                      style={{ backgroundColor: currentRoom?.colorFrom || '#10b981' }}
+                    ></div>
+                    <p className="text-xs text-gray-600 mt-1">{currentRoom?.colorFrom}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Color To
+                    </label>
+                    <div
+                      className="w-full h-12 rounded border-2"
+                      style={{ backgroundColor: currentRoom?.colorTo || '#1e40af' }}
+                    ></div>
+                    <p className="text-xs text-gray-600 mt-1">{currentRoom?.colorTo}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Room Stats */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 text-gray-800">Room Statistics</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <p className="text-sm text-gray-600">Players Joined</p>
+                    <p className="text-3xl font-bold text-blue-600">{players.length}</p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <p className="text-sm text-gray-600">Games Created</p>
+                    <p className="text-3xl font-bold text-green-600">{games.length}</p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <p className="text-sm text-gray-600">Active Games</p>
+                    <p className="text-3xl font-bold text-purple-600">
+                      {games.filter((g) => g.status === 'active').length}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
