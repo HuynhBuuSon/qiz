@@ -29,6 +29,8 @@ export default function PlayerPopup({
     rank: player.rank,
     isScoreHidden: player.isScoreHidden,
     isRankHidden: player.isRankHidden,
+    startWeight: (player as any).startWeight || null,
+    endWeight: (player as any).endWeight || null,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,6 +51,8 @@ export default function PlayerPopup({
             rank: formData.rank,
             isScoreHidden: formData.isScoreHidden,
             isRankHidden: formData.isRankHidden,
+            startWeight: formData.startWeight,
+            endWeight: formData.endWeight,
           }),
         }
       );
@@ -134,6 +138,44 @@ export default function PlayerPopup({
               onChange={(e) =>
                 setFormData({ ...formData, rank: parseInt(e.target.value) })
               }
+              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Start Weight
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              value={formData.startWeight || ''}
+              onChange={(e) =>
+                setFormData({ 
+                  ...formData, 
+                  startWeight: e.target.value === '' ? null : parseFloat(e.target.value)
+                })
+              }
+              placeholder="Optional"
+              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              End Weight
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              value={formData.endWeight || ''}
+              onChange={(e) =>
+                setFormData({ 
+                  ...formData, 
+                  endWeight: e.target.value === '' ? null : parseFloat(e.target.value)
+                })
+              }
+              placeholder="Optional"
               className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>

@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Play, Square, Edit2, Check } from 'lucide-react';
+import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
+import { toCamelCase } from '@/lib/utils/helpers';
 
 interface PlayerWeight {
   playerId: string;
@@ -48,6 +50,7 @@ export default function WeightGameComponent({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Initialize player weights from props on mount
   useEffect(() => {
     if (players && players.length > 0) {
       const weights: Record<string, PlayerWeight> = {};
@@ -65,6 +68,42 @@ export default function WeightGameComponent({
       setPlayerWeights(weights);
     }
   }, [players]);
+
+  // Fetch player weights from API for real-time updates
+  const fetchPlayerWeights = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/players`);
+      if (!response.ok) return;
+      
+      const data = await response.json();
+      const playersList = Array.isArray(data) ? data.map(toCamelCase) : [];
+      
+      setPlayerWeights((prevWeights) => {
+        const updated = { ...prevWeights };
+        playersList.forEach((player: any) => {
+          if (updated[player.id]) {
+            updated[player.id] = {
+              ...updated[player.id],
+              startWeight: player.startWeight || null,
+              endWeight: player.endWeight || null,
+            };
+          }
+        });
+        return updated;
+      });
+    } catch (err) {
+      console.error('Error fetching player weights:', err);
+    }
+  }, [roomId]);
+
+  // Real-time updates for player weights
+  useRealTimeUpdates({
+    roomId: roomId,
+    eventName: 'players:update',
+    fetchCallback: fetchPlayerWeights,
+    pollingInterval: 1000,
+    enabled: Boolean(roomId && currentStep !== 'ended'),
+  });
 
   const handleStartGame = async () => {
     setLoading(true);

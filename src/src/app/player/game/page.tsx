@@ -17,6 +17,8 @@ interface PlayerData {
   rank: number;
   isScoreHidden?: boolean;
   isRankHidden?: boolean;
+  startWeight?: number | null;
+  endWeight?: number | null;
 }
 
 export default function PlayerGame() {
@@ -31,6 +33,7 @@ export default function PlayerGame() {
   const [message, setMessage] = useState('');
   const [activeGame, setActiveGame] = useState<any>(null);
   const [roomPlayers, setRoomPlayers] = useState<any[]>([]);
+  const [weightGameStep, setWeightGameStep] = useState<'settings' | 'step1' | 'step2' | 'ended'>('settings');
 
   const playerId = useGameStore((state) => state.playerId);
   const roomId = useGameStore((state) => state.roomId);
@@ -62,11 +65,38 @@ export default function PlayerGame() {
       const games = await response.json();
       const gamesArray = Array.isArray(games) ? games.map(toCamelCase) : [];
       const active = gamesArray.find((g: any) => g.status === 'active');
-      setActiveGame(active || null);
+      
+      if (active) {
+        setActiveGame(active);
+        
+        // For weight games, determine current step based on player weights
+        if (active.type === 'weight' && playerId) {
+          const playerResponse = await fetch(`/api/rooms/${roomId}/players/${playerId}`);
+          if (playerResponse.ok) {
+            const playerData = await playerResponse.json();
+            const camelPlayer = toCamelCase(playerData);
+            
+            // If player has end weight, they're in step 2 or beyond
+            if (camelPlayer.endWeight !== null && camelPlayer.endWeight !== undefined) {
+              setWeightGameStep('step2');
+            }
+            // If player only has start weight, they're in step 1
+            else if (camelPlayer.startWeight !== null && camelPlayer.startWeight !== undefined) {
+              setWeightGameStep('step1');
+            }
+            // Default to step 1
+            else {
+              setWeightGameStep('step1');
+            }
+          }
+        }
+      } else {
+        setActiveGame(null);
+      }
     } catch (error) {
       console.error('Error fetching games:', error);
     }
-  }, [roomId]);
+  }, [roomId, playerId]);
 
   const fetchRoomPlayers = useCallback(async () => {
     try {
@@ -97,7 +127,7 @@ export default function PlayerGame() {
     roomId: roomId,
     eventName: `player:${playerId}:update`,
     fetchCallback: fetchPlayerData,
-    pollingInterval: 2000,
+    pollingInterval: 1000,
     enabled: Boolean(isReady && roomId && playerId),
   });
 
@@ -106,7 +136,7 @@ export default function PlayerGame() {
     roomId: roomId,
     eventName: 'game:active',
     fetchCallback: fetchActiveGame,
-    pollingInterval: 2000,
+    pollingInterval: 1000,
     enabled: Boolean(isReady && roomId && playerId),
   });
 
@@ -115,9 +145,13 @@ export default function PlayerGame() {
     roomId: roomId,
     eventName: 'players:update',
     fetchCallback: fetchRoomPlayers,
-    pollingInterval: 2000,
+    pollingInterval: 1000,
     enabled: Boolean(isReady && roomId && playerId),
   });
+
+  const handleWeightGameStepChange = (step: string) => {
+    setWeightGameStep(step as 'settings' | 'step1' | 'step2' | 'ended');
+  };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,15 +166,12 @@ export default function PlayerGame() {
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(editData),
+          body: JSON.stringify({}),
         }
       );
 
       if (!response.ok) throw new Error('Failed to update player');
 
-      const updatedPlayer = await response.json();
-      setPlayer(updatedPlayer);
-      setEditData(updatedPlayer);
       setMessage('Profile updated successfully!');
       setTimeout(() => {
         setMessage('');
@@ -254,13 +285,8 @@ export default function PlayerGame() {
                   <input
                     type="text"
                     value={editData.name || ''}
-                    onChange={(e) =>
-                      setEditData({ ...editData, name: e.target.value })
-                    }
-                    placeholder="Enter your name"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={editLoading}
-                    required
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                   />
                 </div>
 
@@ -271,14 +297,8 @@ export default function PlayerGame() {
                   <input
                     type="number"
                     value={editData.score || 0}
-                    onChange={(e) =>
-                      setEditData({
-                        ...editData,
-                        score: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={editLoading}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                   />
                 </div>
 
@@ -289,54 +309,42 @@ export default function PlayerGame() {
                   <input
                     type="number"
                     value={editData.rank || 0}
-                    onChange={(e) =>
-                      setEditData({
-                        ...editData,
-                        rank: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={editLoading}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                   />
                 </div>
 
-                <div className="space-y-2 bg-gray-50 p-4 rounded">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editData.isScoreHidden || false}
-                      onChange={(e) =>
-                        setEditData({
-                          ...editData,
-                          isScoreHidden: e.target.checked,
-                        })
-                      }
-                      disabled={editLoading}
-                      className="w-4 h-4 text-blue-600 rounded"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Hide score from others
-                    </span>
-                  </label>
+                {activeGame?.type === 'weight' && activeGame?.status === 'active' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Start Weight
+                      </label>
+                      <input
+                        type="number"
+                        value={editData.startWeight || ''}
+                        disabled
+                        placeholder="Not set"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Set during Step 1 - Read only</p>
+                    </div>
 
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editData.isRankHidden || false}
-                      onChange={(e) =>
-                        setEditData({
-                          ...editData,
-                          isRankHidden: e.target.checked,
-                        })
-                      }
-                      disabled={editLoading}
-                      className="w-4 h-4 text-blue-600 rounded"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Hide rank from others
-                    </span>
-                  </label>
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        End Weight
+                      </label>
+                      <input
+                        type="number"
+                        value={editData.endWeight || ''}
+                        disabled
+                        placeholder="Not set"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Set during Step 2 - Read only</p>
+                    </div>
+                  </>
+                )}
 
                 <div className="flex gap-2 pt-4">
                   <button
@@ -373,8 +381,9 @@ export default function PlayerGame() {
                     roomId={roomId!}
                     playerId={playerId}
                     isAdmin={false}
-                    currentStep={activeGame.status === 'active' ? 'step1' : 'ended'}
+                    currentStep={weightGameStep}
                     players={roomPlayers}
+                    onStepChange={handleWeightGameStepChange}
                     onGameComplete={() => setActiveGame(null)}
                   />
                 ) : activeGame.type === 'random' ? (

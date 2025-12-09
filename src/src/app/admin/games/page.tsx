@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
+import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase } from '@/lib/utils/helpers';
 import { Trash2, Edit, Play, Square, ArrowLeft } from 'lucide-react';
 import GameSelectorModal from '@/components/admin/GameSelectorModal';
@@ -23,18 +24,7 @@ export default function AdminGames() {
   const [selectedGameType, setSelectedGameType] = useState('');
   const [selectedGame, setSelectedGame] = useState<any>(null);
 
-  useEffect(() => {
-    if (!isReady) return;
-
-    if (currentRoom?.id) {
-      loadGames();
-      loadPlayers();
-    } else {
-      setLoading(false);
-    }
-  }, [isReady, currentRoom?.id]);
-
-  const loadPlayers = async () => {
+  const loadPlayers = useCallback(async () => {
     try {
       const response = await fetch(`/api/rooms/${currentRoom?.id}/players`);
 
@@ -45,9 +35,9 @@ export default function AdminGames() {
     } catch (err: any) {
       console.error('Failed to load players:', err.message);
     }
-  };
+  }, [currentRoom?.id]);
 
-  const loadGames = async () => {
+  const loadGames = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
@@ -61,7 +51,36 @@ export default function AdminGames() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentRoom?.id]);
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    if (currentRoom?.id) {
+      loadGames();
+      loadPlayers();
+    } else {
+      setLoading(false);
+    }
+  }, [isReady, currentRoom?.id, loadGames, loadPlayers]);
+
+  // Real-time updates for games
+  useRealTimeUpdates({
+    roomId: currentRoom?.id,
+    eventName: 'games:update',
+    fetchCallback: loadGames,
+    pollingInterval: 1000,
+    enabled: Boolean(isReady && currentRoom?.id),
+  });
+
+  // Real-time updates for players
+  useRealTimeUpdates({
+    roomId: currentRoom?.id,
+    eventName: 'players:update',
+    fetchCallback: loadPlayers,
+    pollingInterval: 1000,
+    enabled: Boolean(isReady && currentRoom?.id),
+  });
 
   const handleStartGame = async (gameId: string) => {
     try {
@@ -112,6 +131,11 @@ export default function AdminGames() {
         setError(err.message || 'Failed to update game status');
       }
     }
+  };
+
+  const handleMoveToStep2 = (game: any) => {
+    setSelectedGame(game);
+    setShowGameControl(true);
   };
 
   const handleDeleteGame = async (gameId: string) => {
@@ -305,6 +329,16 @@ export default function AdminGames() {
                         className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
                       >
                         <Square className="w-5 h-5" />
+                      </button>
+                    )}
+
+                    {game.status === 'active' && game.type === 'weight' && (
+                      <button
+                        onClick={() => handleMoveToStep2(game)}
+                        title="Move to Step 2"
+                        className="px-3 py-2 bg-purple-100 text-purple-600 rounded hover:bg-purple-200 transition-colors text-sm font-medium"
+                      >
+                        Step 2
                       </button>
                     )}
                     
