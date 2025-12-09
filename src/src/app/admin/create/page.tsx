@@ -9,6 +9,7 @@ import { ArrowLeft } from 'lucide-react';
 export default function AdminCreate() {
   const router = useRouter();
   const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
+  const setUserRole = useGameStore((state) => state.setUserRole);
   const [formData, setFormData] = useState({
     gameName: '',
     mainColor: '#3b82f6',
@@ -116,6 +117,9 @@ export default function AdminCreate() {
       
       // Convert snake_case to camelCase
       const convertedRoom = toCamelCase(room);
+      
+      // Set user role to admin
+      setUserRole('admin');
       
       // Save room to store
       setCurrentRoom(convertedRoom);

@@ -15,6 +15,7 @@ function PresenterJoinContent() {
   const [error, setError] = useState('');
 
   const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
+  const setUserRole = useGameStore((state) => state.setUserRole);
 
   // Load room number and presentation code from URL parameters
   useEffect(() => {
@@ -74,6 +75,7 @@ function PresenterJoinContent() {
 
       // Convert and store room data
       const convertedRoom = toCamelCase(room);
+      setUserRole('presenter');
       setCurrentRoom(convertedRoom);
 
       // Redirect to presentation display

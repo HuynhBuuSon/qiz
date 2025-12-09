@@ -18,6 +18,7 @@ function PlayerJoinContent() {
   const setPlayerId = useGameStore((state) => state.setPlayerId);
   const setRoomId = useGameStore((state) => state.setRoomId);
   const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
+  const setUserRole = useGameStore((state) => state.setUserRole);
 
   // Load room number and join code from URL parameters
   useEffect(() => {
@@ -106,6 +107,7 @@ function PlayerJoinContent() {
       const player = await playerResponse.json();
 
       // 3. Store in Zustand + localStorage
+      setUserRole('player');
       setPlayerId(player.id);
       setRoomId(convertedRoom.id);
       setCurrentRoom(convertedRoom);

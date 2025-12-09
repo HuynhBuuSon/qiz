@@ -6,16 +6,19 @@ import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase } from '@/lib/utils/helpers';
+import { LogOut } from 'lucide-react';
 import PresentationQRCode from '@/components/presenter/PresentationQRCode';
 import RandomGameComponent from '@/components/RandomGameComponent';
 
 export default function PresenterDisplay() {
   const router = useRouter();
   const { isReady, currentRoom } = useDataRecovery('presenter');
+  const reset = useGameStore((state) => state.reset);
   const [players, setPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeGame, setActiveGame] = useState<any>(null);
   const [showQR, setShowQR] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   const loadPlayers = useCallback(async () => {
     try {
@@ -49,14 +52,28 @@ export default function PresenterDisplay() {
     if (!isReady) return;
     
     if (!currentRoom?.id) {
-      router.push('/presenter/join');
+      // Use a timer to ensure hydration is complete before redirecting
+      const timer = setTimeout(() => {
+        setShouldRedirect(true);
+      }, 100);
       setLoading(false);
-      return;
+      return () => clearTimeout(timer);
     }
 
     loadPlayers();
     loadActiveGame();
-  }, [isReady, currentRoom?.id, router, loadPlayers, loadActiveGame]);
+  }, [isReady, currentRoom?.id, loadPlayers, loadActiveGame]);
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      router.push('/presenter/join');
+    }
+  }, [shouldRedirect, router]);
+
+  const handleLogout = () => {
+    reset();
+    router.push('/');
+  };
 
   // Real-time updates for players
   useRealTimeUpdates({
@@ -122,6 +139,18 @@ export default function PresenterDisplay() {
   return (
     <div className="min-h-screen w-full bg-gray-900 text-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
+        {/* Header with Logout Button */}
+        <div className="mb-8 flex items-center justify-between">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors font-medium"
+            title="Logout"
+          >
+            <LogOut className="w-5 h-5" />
+            Logout
+          </button>
+        </div>
+
         {/* Header with Room Info */}
         <div className="mb-8">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 text-center">

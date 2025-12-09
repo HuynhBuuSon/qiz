@@ -6,7 +6,7 @@ import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase } from '@/lib/utils/helpers';
-import { Home, Edit, Menu, Gamepad2 } from 'lucide-react';
+import { Home, Edit, Menu, Gamepad2, LogOut } from 'lucide-react';
 import WeightGameComponent from '@/components/WeightGameComponent';
 import RandomGameComponent from '@/components/RandomGameComponent';
 
@@ -34,9 +34,11 @@ export default function PlayerGame() {
   const [activeGame, setActiveGame] = useState<any>(null);
   const [roomPlayers, setRoomPlayers] = useState<any[]>([]);
   const [weightGameStep, setWeightGameStep] = useState<'settings' | 'step1' | 'step2' | 'ended'>('settings');
+  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   const playerId = useGameStore((state) => state.playerId);
   const roomId = useGameStore((state) => state.roomId);
+  const reset = useGameStore((state) => state.reset);
 
   // Fetch player data
   const fetchPlayerData = useCallback(async () => {
@@ -113,14 +115,23 @@ export default function PlayerGame() {
   useEffect(() => {
     if (!isReady || !roomId || !playerId) {
       if (!isReady) return;
-      router.push('/player/join');
-      return;
+      // Use a timer to ensure hydration is complete before redirecting
+      const timer = setTimeout(() => {
+        setShouldRedirect(true);
+      }, 100);
+      return () => clearTimeout(timer);
     }
 
     fetchPlayerData();
     fetchActiveGame();
     fetchRoomPlayers();
-  }, [isReady, roomId, playerId, router, fetchPlayerData, fetchActiveGame, fetchRoomPlayers]);
+  }, [isReady, roomId, playerId, fetchPlayerData, fetchActiveGame, fetchRoomPlayers]);
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      router.push('/player/join');
+    }
+  }, [shouldRedirect, router]);
 
   // Real-time updates for player data
   useRealTimeUpdates({
@@ -151,6 +162,11 @@ export default function PlayerGame() {
 
   const handleWeightGameStepChange = (step: string) => {
     setWeightGameStep(step as 'settings' | 'step1' | 'step2' | 'ended');
+  };
+
+  const handleLogout = () => {
+    reset();
+    router.push('/');
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -206,12 +222,21 @@ export default function PlayerGame() {
       {/* Header */}
       <div className="bg-blue-600 text-white p-4 flex items-center justify-between sticky top-0 z-10">
         <h1 className="text-xl font-bold">Player</h1>
-        <button
-          onClick={() => setShowMenu(!showMenu)}
-          className="p-2 hover:bg-blue-700 rounded"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleLogout}
+            className="p-2 hover:bg-blue-700 rounded flex items-center gap-2"
+            title="Logout"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-2 hover:bg-blue-700 rounded"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
       </div>
 
       {/* Message Alert */}

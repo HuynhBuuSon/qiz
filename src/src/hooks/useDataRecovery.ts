@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { useRealTimeUpdates } from './useRealTimeUpdates';
@@ -9,11 +9,31 @@ import { useRealTimeUpdates } from './useRealTimeUpdates';
  */
 export function useDataRecovery(requiredRole?: 'admin' | 'player' | 'presenter') {
   const router = useRouter();
+  const [isStoreReady, setIsStoreReady] = useState(false);
   const userRole = useGameStore((state) => state.userRole);
   const roomId = useGameStore((state) => state.roomId);
   const currentRoom = useGameStore((state) => state.currentRoom);
 
+  // Wait for Zustand store to be rehydrated from localStorage
   useEffect(() => {
+    // Use a small delay to ensure Zustand has rehydrated from localStorage
+    const timer = setTimeout(() => {
+      setIsStoreReady(true);
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isStoreReady) return;
+
+    // If we have a currentRoom but no role yet, don't redirect immediately
+    // This handles the case where we just came from a create/join page
+    if (currentRoom?.id && !userRole) {
+      // Don't redirect - user might still be hydrating
+      return;
+    }
+
     // Check if user has the required role
     if (requiredRole && userRole !== requiredRole) {
       // Allow initial page load, but redirect if no session exists
@@ -33,13 +53,13 @@ export function useDataRecovery(requiredRole?: 'admin' | 'player' | 'presenter')
         router.push('/presenter/join');
       }
     }
-  }, [requiredRole, userRole, roomId, currentRoom, router]);
+  }, [requiredRole, userRole, roomId, currentRoom, router, isStoreReady]);
 
   return {
     userRole,
     roomId,
     currentRoom,
-    isReady: !requiredRole || (userRole === requiredRole && (roomId || currentRoom?.id)),
+    isReady: isStoreReady && (!requiredRole || (userRole === requiredRole && (roomId || currentRoom?.id))),
   };
 }
 
@@ -51,6 +71,12 @@ export function useRoomDataSync(shouldAutoRefresh: boolean = true) {
   const roomId = useGameStore((state) => state.roomId);
   const currentRoom = useGameStore((state) => state.currentRoom);
   const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
+  const [isStoreReady, setIsStoreReady] = useState(false);
+
+  // Wait for store to be ready
+  useEffect(() => {
+    setIsStoreReady(true);
+  }, []);
 
   const fetchAndUpdateRoom = useCallback(async () => {
     try {
@@ -72,9 +98,9 @@ export function useRoomDataSync(shouldAutoRefresh: boolean = true) {
 
   // Initial fetch
   useEffect(() => {
-    if (!roomId && !currentRoom?.id) return;
+    if (!isStoreReady || (!roomId && !currentRoom?.id)) return;
     fetchAndUpdateRoom();
-  }, [roomId, currentRoom?.id, fetchAndUpdateRoom]);
+  }, [roomId, currentRoom?.id, fetchAndUpdateRoom, isStoreReady]);
 
   // Real-time updates using WebSocket with fallback to polling
   useRealTimeUpdates({
@@ -82,6 +108,6 @@ export function useRoomDataSync(shouldAutoRefresh: boolean = true) {
     eventName: 'room:update',
     fetchCallback: fetchAndUpdateRoom,
     pollingInterval: 5000,
-    enabled: Boolean(shouldAutoRefresh && (roomId || currentRoom?.id)),
+    enabled: Boolean(shouldAutoRefresh && isStoreReady && (roomId || currentRoom?.id)),
   });
 }

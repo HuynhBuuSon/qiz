@@ -20,6 +20,7 @@ export default function AdminHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeGame, setActiveGame] = useState<any>(null);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   const loadPlayers = useCallback(async () => {
     try {
@@ -51,15 +52,31 @@ export default function AdminHome() {
 
   // Set up real-time updates after all functions are defined
   useEffect(() => {
-    if (!isReady || !currentRoom?.id) {
+    // Use a small timer to ensure we don't redirect too early during hydration
+    const timer = setTimeout(() => {
+      if (!isReady || !currentRoom?.id) {
+        setShouldRedirect(true);
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [isReady, currentRoom?.id]);
+
+  useEffect(() => {
+    if (shouldRedirect) {
       router.push('/admin/create');
+    }
+  }, [shouldRedirect, router]);
+
+  useEffect(() => {
+    if (!isReady || !currentRoom?.id) {
       return;
     }
 
     // Initial load
     loadPlayers();
     loadActiveGame();
-  }, [isReady, currentRoom?.id, router, loadPlayers, loadActiveGame]);
+  }, [isReady, currentRoom?.id, loadPlayers, loadActiveGame]);
 
   // Real-time updates for players
   useRealTimeUpdates({
