@@ -444,10 +444,11 @@ export default function WeightGameComponent({
                             value={currentPlayerWeight}
                             onChange={(e) =>
                               setCurrentPlayerWeight(
-                                e.target.value === '' ? '' : parseInt(e.target.value)
+                                e.target.value === '' ? '' : gameSettings.weightUnit === 'kg' ? parseFloat(e.target.value) : parseInt(e.target.value)
                               )
                             }
                             placeholder="Weight"
+                            step={gameSettings.weightUnit === 'kg' ? '0.01' : '1'}
                             className="w-20 border border-gray-300 rounded px-2 py-1"
                           />
                           <button
@@ -537,10 +538,11 @@ export default function WeightGameComponent({
                             value={currentPlayerWeight}
                             onChange={(e) =>
                               setCurrentPlayerWeight(
-                                e.target.value === '' ? '' : parseInt(e.target.value)
+                                e.target.value === '' ? '' : gameSettings.weightUnit === 'kg' ? parseFloat(e.target.value) : parseInt(e.target.value)
                               )
                             }
                             placeholder="Weight"
+                            step={gameSettings.weightUnit === 'kg' ? '0.01' : '1'}
                             className="w-20 border border-gray-300 rounded px-2 py-1"
                           />
                           <button
