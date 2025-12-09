@@ -39,7 +39,7 @@ export async function PATCH(
   try {
     const { roomId, playerId } = await params;
     const body = await req.json();
-    const { name, score, rank } = body;
+    const { name, score, isScoreHidden, isRankHidden } = body;
 
     // Verify player exists
     const playerCheck = await query(
@@ -77,15 +77,15 @@ export async function PATCH(
       paramIndex++;
     }
 
-    if (rank !== undefined) {
-      if (typeof rank !== 'number') {
-        return NextResponse.json(
-          { error: 'Rank must be a number' },
-          { status: 400 }
-        );
-      }
-      updateQuery += `rank = $${paramIndex}, `;
-      values.push(rank);
+    if (isScoreHidden !== undefined) {
+      updateQuery += `is_hidden_score = $${paramIndex}, `;
+      values.push(isScoreHidden);
+      paramIndex++;
+    }
+
+    if (isRankHidden !== undefined) {
+      updateQuery += `is_hidden_rank = $${paramIndex}, `;
+      values.push(isRankHidden);
       paramIndex++;
     }
 
@@ -103,7 +103,31 @@ export async function PATCH(
 
     const result = await query(updateQuery, values);
 
-    return NextResponse.json(result.rows[0]);
+    // If score was updated, recalculate ranks for all players in the room
+    if (score !== undefined) {
+      // Get all players in the room sorted by score (descending)
+      const allPlayersResult = await query(
+        'SELECT id FROM players WHERE room_id = $1 ORDER BY score DESC, id ASC',
+        [roomId]
+      );
+
+      // Update ranks for all players
+      for (let i = 0; i < allPlayersResult.rows.length; i++) {
+        const newRank = i + 1;
+        await query(
+          'UPDATE players SET rank = $1 WHERE id = $2',
+          [newRank, allPlayersResult.rows[i].id]
+        );
+      }
+    }
+
+    // Fetch updated player data with new rank
+    const updatedPlayer = await query(
+      'SELECT * FROM players WHERE id = $1 AND room_id = $2',
+      [playerId, roomId]
+    );
+
+    return NextResponse.json(updatedPlayer.rows[0]);
   } catch (error: any) {
     console.error('Error updating player:', error);
     return NextResponse.json(

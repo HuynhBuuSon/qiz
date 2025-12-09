@@ -42,8 +42,8 @@ export default function PlayerGame() {
 
   // Fetch player data
   const fetchPlayerData = useCallback(async () => {
+    if (!roomId || !playerId) return;
     try {
-      setLoading(true);
       const response = await fetch(
         `/api/rooms/${roomId}/players/${playerId}`
       );
@@ -54,13 +54,11 @@ export default function PlayerGame() {
       setEditData(camelData);
     } catch (error) {
       console.error('Error fetching player:', error);
-      setMessage('Error loading player data');
-    } finally {
-      setLoading(false);
     }
   }, [roomId, playerId]);
 
   const fetchActiveGame = useCallback(async () => {
+    if (!roomId || !playerId) return;
     try {
       const response = await fetch(`/api/rooms/${roomId}/games`);
       if (!response.ok) return;
@@ -72,7 +70,7 @@ export default function PlayerGame() {
         setActiveGame(active);
         
         // For weight games, determine current step based on player weights
-        if (active.type === 'weight' && playerId) {
+        if (active.type === 'weight') {
           const playerResponse = await fetch(`/api/rooms/${roomId}/players/${playerId}`);
           if (playerResponse.ok) {
             const playerData = await playerResponse.json();
@@ -101,6 +99,7 @@ export default function PlayerGame() {
   }, [roomId, playerId]);
 
   const fetchRoomPlayers = useCallback(async () => {
+    if (!roomId) return;
     try {
       const response = await fetch(`/api/rooms/${roomId}/players`);
       if (!response.ok) return;
@@ -122,9 +121,12 @@ export default function PlayerGame() {
       return () => clearTimeout(timer);
     }
 
-    fetchPlayerData();
-    fetchActiveGame();
-    fetchRoomPlayers();
+    setLoading(true);
+    Promise.all([
+      fetchPlayerData(),
+      fetchActiveGame(),
+      fetchRoomPlayers()
+    ]).finally(() => setLoading(false));
   }, [isReady, roomId, playerId, fetchPlayerData, fetchActiveGame, fetchRoomPlayers]);
 
   useEffect(() => {
@@ -132,6 +134,13 @@ export default function PlayerGame() {
       router.push('/player/join');
     }
   }, [shouldRedirect, router]);
+
+  // Sync editData with player data
+  useEffect(() => {
+    if (player) {
+      setEditData(player);
+    }
+  }, [player]);
 
   // Real-time updates for player data
   useRealTimeUpdates({

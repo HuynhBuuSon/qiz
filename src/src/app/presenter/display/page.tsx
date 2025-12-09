@@ -21,6 +21,7 @@ export default function PresenterDisplay() {
   const [shouldRedirect, setShouldRedirect] = useState(false);
 
   const loadPlayers = useCallback(async () => {
+    if (!currentRoom?.id) return;
     try {
       const response = await fetch(`/api/rooms/${currentRoom?.id}/players`);
       if (response.ok) {
@@ -29,12 +30,11 @@ export default function PresenterDisplay() {
       }
     } catch (error) {
       console.error('Failed to load players:', error);
-    } finally {
-      setLoading(false);
     }
   }, [currentRoom?.id]);
 
   const loadActiveGame = useCallback(async () => {
+    if (!currentRoom?.id) return;
     try {
       const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
       if (response.ok) {
@@ -60,8 +60,11 @@ export default function PresenterDisplay() {
       return () => clearTimeout(timer);
     }
 
-    loadPlayers();
-    loadActiveGame();
+    setLoading(true);
+    Promise.all([
+      loadPlayers(),
+      loadActiveGame()
+    ]).finally(() => setLoading(false));
   }, [isReady, currentRoom?.id, loadPlayers, loadActiveGame]);
 
   useEffect(() => {

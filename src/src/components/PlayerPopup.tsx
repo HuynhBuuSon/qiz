@@ -48,7 +48,6 @@ export default function PlayerPopup({
           body: JSON.stringify({
             name: formData.name,
             score: formData.score,
-            rank: formData.rank,
             isScoreHidden: formData.isScoreHidden,
             isRankHidden: formData.isRankHidden,
             startWeight: formData.startWeight,
@@ -130,16 +129,15 @@ export default function PlayerPopup({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Rank
+              Rank (Auto-calculated)
             </label>
             <input
               type="number"
               value={formData.rank}
-              onChange={(e) =>
-                setFormData({ ...formData, rank: parseInt(e.target.value) })
-              }
-              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
+              disabled
+              className="w-full px-3 py-2 border rounded bg-gray-100 text-gray-600 cursor-not-allowed"
             />
+            <p className="text-xs text-gray-500 mt-1">Automatically calculated based on score</p>
           </div>
 
           <div>

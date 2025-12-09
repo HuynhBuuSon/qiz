@@ -24,6 +24,28 @@ export function useRealTimeUpdates({
   const socketRef = useRef<any>(null);
   const isConnectedRef = useRef(false);
 
+  // Polling fallback - defined before useEffect so it can be used
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) return; // Already polling
+    
+    console.log(`[${eventName}] Starting polling every ${pollingInterval}ms`);
+    
+    // Fetch immediately first
+    try {
+      fetchCallback();
+    } catch (error) {
+      console.error(`[${eventName}] Immediate polling error:`, error);
+    }
+    
+    pollingRef.current = setInterval(async () => {
+      try {
+        await fetchCallback();
+      } catch (error) {
+        console.error(`[${eventName}] Polling error:`, error);
+      }
+    }, pollingInterval);
+  }, [eventName, pollingInterval, fetchCallback]);
+
   // Initialize socket on mount
   useEffect(() => {
     if (!enabled) return;
@@ -58,6 +80,11 @@ export function useRealTimeUpdates({
 
       // Subscribe to global events
       socketRef.current.on(eventName, fetchCallback);
+      
+      // If socket not connected yet, start polling immediately
+      if (!isConnectedRef.current) {
+        startPolling();
+      }
     } catch (error) {
       console.error(`[${eventName}] Failed to initialize socket, using polling:`, error);
       startPolling();
@@ -76,21 +103,7 @@ export function useRealTimeUpdates({
         clearInterval(pollingRef.current);
       }
     };
-  }, [enabled, eventName, roomId, fetchCallback]);
-
-  // Polling fallback
-  const startPolling = useCallback(() => {
-    if (pollingRef.current) return; // Already polling
-    
-    console.log(`[${eventName}] Starting polling every ${pollingInterval}ms`);
-    pollingRef.current = setInterval(async () => {
-      try {
-        await fetchCallback();
-      } catch (error) {
-        console.error(`[${eventName}] Polling error:`, error);
-      }
-    }, pollingInterval);
-  }, [eventName, pollingInterval, fetchCallback]);
+  }, [enabled, eventName, roomId, fetchCallback, startPolling]);
 
   // Manual trigger for immediate update
   const triggerUpdate = useCallback(async () => {
