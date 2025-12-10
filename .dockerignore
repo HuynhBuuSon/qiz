@@ -15,8 +15,6 @@ build
 .env.example
 migrations
 scripts
-public
-src
 .env.docker
 Dockerfile
 docker-compose.yml
