@@ -70,6 +70,22 @@ export const onPointsUpdated = (callback: (data: any) => void) => {
   getSocket()?.on('points:updated', callback);
 };
 
+export const onRandomGameSpinning = (callback: (data: any) => void) => {
+  getSocket()?.on('random:game:spinning', callback);
+};
+
+export const onRandomGameSpinComplete = (callback: (data: any) => void) => {
+  getSocket()?.on('random:game:spin:complete', callback);
+};
+
+export const onRandomGamePlayerSelected = (callback: (data: any) => void) => {
+  getSocket()?.on('random:game:player:selected', callback);
+};
+
+export const onRandomGameActionTaken = (callback: (data: any) => void) => {
+  getSocket()?.on('random:game:action:taken', callback);
+};
+
 // Emit functions
 export const emitJoinRoom = (roomId: string, playerData: any) => {
   getSocket()?.emit('room:join', { roomId, playerData });
@@ -85,4 +101,40 @@ export const emitGameUpdate = (roomId: string, gameData: any) => {
 
 export const emitPlayersUpdate = (roomId: string, players: any) => {
   getSocket()?.emit('players:update', { roomId, players });
+};
+
+/**
+ * Emit admin-only spin request
+ * Only admins can trigger spins
+ */
+export const emitRandomGameSpin = (roomId: string, gameId: string, adminId: string) => {
+  getSocket()?.emit('random:game:spin', { roomId, gameId, adminId });
+};
+
+/**
+ * Emit admin action (reward/punish/nothing)
+ * Only admins can take actions
+ */
+export const emitRandomGameAction = (
+  roomId: string,
+  gameId: string,
+  playerId: string,
+  action: 'reward' | 'punish' | 'nothing',
+  adminId: string
+) => {
+  getSocket()?.emit('random:game:action', {
+    roomId,
+    gameId,
+    playerId,
+    action,
+    adminId,
+  });
+};
+
+/**
+ * Emit end game request
+ * Only admins can end the game
+ */
+export const emitRandomGameEnd = (roomId: string, gameId: string, adminId: string) => {
+  getSocket()?.emit('random:game:end', { roomId, gameId, adminId });
 };

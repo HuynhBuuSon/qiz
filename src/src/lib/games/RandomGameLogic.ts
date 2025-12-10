@@ -10,20 +10,11 @@ import { RandomGameSettings, RandomWinner, GameResult } from './types';
 export class RandomGameLogic extends BaseGame {
   protected settings: RandomGameSettings;
   protected winners: Map<string, RandomWinner> = new Map();
-  protected winnerOrder: string[] = []; // Track order of winners
   protected selectedPlayerIds: Set<string> = new Set(); // Already selected players (if !isRepeat)
-  protected playerNames: Map<string, string> = new Map();
 
   constructor(gameId: string, settings: RandomGameSettings) {
     super(gameId, settings);
     this.settings = settings;
-  }
-
-  /**
-   * Initialize random game with players
-   */
-  initializeGame(playerIds: string[], playerNames: Map<string, string>): void {
-    this.playerNames = playerNames;
   }
 
   /**
@@ -38,23 +29,18 @@ export class RandomGameLogic extends BaseGame {
   }
 
   /**
-   * Pick a random player from available players
+   * Spin wheel - randomly pick a player from available players
+   * Returns the selected player ID or null if no players available
    */
-  pickRandomPlayer(availablePlayerIds: string[]): string | null {
+  spinWheel(availablePlayerIds: string[]): string | null {
     if (availablePlayerIds.length === 0) {
       return null;
     }
 
     const randomIndex = Math.floor(Math.random() * availablePlayerIds.length);
-    return availablePlayerIds[randomIndex];
-  }
+    const selectedPlayerId = availablePlayerIds[randomIndex];
 
-  /**
-   * Spin wheel - Step 2 (Select random player)
-   */
-  spinWheel(availablePlayerIds: string[]): string | null {
-    const selectedPlayerId = this.pickRandomPlayer(availablePlayerIds);
-
+    // Mark as selected if not repeating
     if (selectedPlayerId && !this.settings.isRepeat) {
       this.selectedPlayerIds.add(selectedPlayerId);
     }
@@ -62,51 +48,45 @@ export class RandomGameLogic extends BaseGame {
     return selectedPlayerId;
   }
 
-  /**
-   * Apply admin action to selected player - Step 3
-   */
-  applyAdminAction(playerId: string, action: 'reward' | 'punish' | 'nothing'): void {
-    const playerName = this.playerNames.get(playerId) || playerId;
-    let pointsAwarded = 0;
 
+  /**
+   * Apply admin action to selected player
+   * Updates player score based on action
+   */
+  calculatePointsAwarded(action: 'reward' | 'punish' | 'nothing'): number {
     switch (action) {
       case 'reward':
-        pointsAwarded = this.settings.pointAward;
-        break;
+        return this.settings.pointAward;
       case 'punish':
-        pointsAwarded = -this.settings.pointAward;
-        break;
+        return -this.settings.pointAward;
       case 'nothing':
-        pointsAwarded = 0;
-        break;
+        return 0;
     }
-
-    const winner: RandomWinner = {
-      playerId,
-      playerName,
-      adminAction: action,
-      pointsAwarded,
-    };
-
-    this.winners.set(playerId, winner);
-    this.winnerOrder.push(playerId);
-    this.results.push({
-      playerId,
-      playerName,
-      pointsEarned: pointsAwarded,
-      rank: this.winnerOrder.length,
-    });
   }
 
   /**
-   * Start game (Step 1)
+   * Check if a player has already been selected
    */
-  async startGame(): Promise<void> {
-    console.log(`Random Game ${this.gameId} started - Step 1 (Ready for spin)`);
+  isPlayerAlreadySelected(playerId: string): boolean {
+    return this.selectedPlayerIds.has(playerId);
   }
 
   /**
-   * End game
+   * Record a winner selection
+   */
+  recordWinner(winner: RandomWinner): void {
+    this.winners.set(winner.playerId, winner);
+  }
+
+  /**
+   * Get all recorded winners
+   */
+  getWinners(): RandomWinner[] {
+    return Array.from(this.winners.values());
+  }
+
+  /**
+   * End game and calculate final rankings
    */
   async endGame(): Promise<GameResult[]> {
     // Calculate final ranks based on points
@@ -124,19 +104,6 @@ export class RandomGameLogic extends BaseGame {
   }
 
   /**
-   * Update game state during gameplay
-   */
-  async updateGameState(data: any): Promise<void> {
-    const { action, playerId } = data;
-
-    if (action === 'spin') {
-      // Spinning is handled by spinWheel
-    } else if (action === 'admin_action') {
-      this.applyAdminAction(playerId, data.adminAction);
-    }
-  }
-
-  /**
    * Get current game state
    */
   getGameState() {
@@ -150,18 +117,18 @@ export class RandomGameLogic extends BaseGame {
   }
 
   /**
-   * Get spinner data for display
+   * Start game (admin only)
    */
-  getSpinnerData(allPlayerIds: string[]) {
-    const availablePlayers = this.getAvailablePlayers(allPlayerIds);
-    return {
-      players: availablePlayers.map((id) => ({
-        id,
-        name: this.playerNames.get(id) || id,
-      })),
-      isRepeat: this.settings.isRepeat,
-      usedCount: this.selectedPlayerIds.size,
-      totalPlayers: allPlayerIds.length,
-    };
+  async startGame(): Promise<void> {
+    console.log(`Random Game ${this.gameId} started`);
+  }
+
+  /**
+   * Update game state during gameplay
+   */
+  async updateGameState(data: any): Promise<void> {
+    console.log(`Random Game ${this.gameId} state updated:`, data);
   }
 }
+
+
