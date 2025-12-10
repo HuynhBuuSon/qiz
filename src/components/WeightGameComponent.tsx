@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Play, Square, Edit2, Check } from 'lucide-react';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase } from '@/lib/utils/helpers';
+import { WeightGameLogic } from '@/lib/games/WeightGameLogic';
+import { PointMode } from '@/lib/games/types';
 
 interface PlayerWeight {
   playerId: string;
@@ -50,6 +52,22 @@ export default function WeightGameComponent({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // Game logic instance - memoized with full settings
+  const [gameLogic] = useState<WeightGameLogic>(() => {
+    return new WeightGameLogic(gameId, {
+      gameName: 'Weight Game',
+      pointMode: PointMode.MODE_1,
+      pointFrom: 0,
+      pointTo: 100,
+      weightLimit: {
+        from: 0,
+        to: 100,
+      },
+      weightUnit: 'kg' as 'g' | 'kg',
+      gameMode: 'most' as 'most' | 'least',
+    });
+  });
 
   // Load game settings from API on mount
   useEffect(() => {
@@ -170,6 +188,8 @@ export default function WeightGameComponent({
   };
 
   const calculatePoints = (rank: number, totalPlayers: number, isZeroRange: boolean): number => {
+    // Use game logic to calculate points instead
+    // (The BaseGame.calculatePoints is protected, so we need to use the component's logic or expose a public method)
     const maxPoints = Math.max(gameSettings.weightLimitFrom, gameSettings.weightLimitTo);
     const minPoints = Math.min(gameSettings.weightLimitFrom, gameSettings.weightLimitTo);
 
@@ -187,71 +207,32 @@ export default function WeightGameComponent({
     setLoading(true);
     setError('');
     try {
-      const results: any[] = [];
+      // Prepare entries for game logic
       const allPlayerWeights = Object.values(playerWeights);
       
-      // Separate players with weight ranges from those without
-      const withRanges = allPlayerWeights
-        .filter((pw) => pw.startWeight !== null && pw.endWeight !== null)
-        .map((pw) => ({
-          ...pw,
-          weightRange: pw.startWeight! - pw.endWeight!,
-        }));
+      // Initialize game logic entries
+      const playerNames = new Map<string, string>();
+      allPlayerWeights.forEach((pw) => {
+        playerNames.set(pw.playerId, pw.playerName);
+      });
+      
+      gameLogic.initializeEntries(
+        allPlayerWeights.map(pw => pw.playerId),
+        playerNames
+      );
 
-      const withoutRanges = allPlayerWeights
-        .filter((pw) => pw.startWeight === null || pw.endWeight === null);
-
-      // Sort players with ranges
-      const sorted = [...withRanges].sort((a, b) => {
-        if (gameSettings.gameMode === 'most') {
-          return b.weightRange! - a.weightRange!;
-        } else {
-          return a.weightRange! - b.weightRange!;
+      // Update game logic with weights from component state
+      allPlayerWeights.forEach((pw) => {
+        if (pw.startWeight !== null) {
+          gameLogic.updateStartWeight(pw.playerId, pw.startWeight, true);
+        }
+        if (pw.endWeight !== null) {
+          gameLogic.updateEndWeight(pw.playerId, pw.endWeight, true);
         }
       });
 
-      // Separate zero range entries
-      const zeroRangeEntries = sorted.filter((e) => e.weightRange === 0);
-      const validRangeEntries = sorted.filter((e) => e.weightRange !== 0);
-
-      // Assign ranks and points to valid entries
-      validRangeEntries.forEach((entry, index) => {
-        const rank = index + 1;
-        const points = calculatePoints(rank, validRangeEntries.length, false);
-
-        results.push({
-          playerId: entry.playerId,
-          playerName: entry.playerName,
-          rank,
-          pointsEarned: points,
-          weightRange: entry.weightRange,
-        });
-      });
-
-      // Assign lowest points to zero range entries
-      const lowestRank = validRangeEntries.length + 1;
-      zeroRangeEntries.forEach((entry) => {
-        const lowestPoints = Math.min(gameSettings.weightLimitFrom, gameSettings.weightLimitTo);
-        results.push({
-          playerId: entry.playerId,
-          playerName: entry.playerName,
-          rank: lowestRank,
-          pointsEarned: lowestPoints,
-          weightRange: entry.weightRange,
-        });
-      });
-
-      // Assign lowest points to players without data
-      withoutRanges.forEach((entry) => {
-        const lowestPoints = Math.min(gameSettings.weightLimitFrom, gameSettings.weightLimitTo);
-        results.push({
-          playerId: entry.playerId,
-          playerName: entry.playerName,
-          rank: allPlayerWeights.length,
-          pointsEarned: lowestPoints,
-          weightRange: null,
-        });
-      });
+      // Use game logic to end game and calculate results
+      const results = await gameLogic.endGame();
 
       // Step 1: Update game status to 'completed'
       const statusResponse = await fetch(`/api/rooms/${roomId}/games/${gameId}`, {
