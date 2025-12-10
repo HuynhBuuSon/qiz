@@ -25,6 +25,8 @@
     "swagger-ui-dist": "^5.30.3",
     "swagger-ui-express": "^5.0.1",
     "swagger-ui-react": "^5.30.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5",
     "uuid": "^13.0.0",
     "ws": "^8.18.3",
     "zustand": "^5.0.9"

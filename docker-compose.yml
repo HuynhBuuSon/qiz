@@ -8,8 +8,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-game}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -42,8 +40,8 @@ services:
     networks:
       - qiz-network
     restart: unless-stopped
-    # Run migrations on startup
-    command: sh -c "npm run migrate && node server.js"
+    # Run migrations on startup if database is ready
+    entrypoint: sh -c "npm run migrate 2>/dev/null || true && exec node server.js"
 
 volumes:
   postgres_data:

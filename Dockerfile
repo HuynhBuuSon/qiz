@@ -33,6 +33,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy public directory from host if it exists
 COPY public/ ./public/
 COPY --chown=nextjs:nodejs package.json ./
+COPY --chown=nextjs:nodejs scripts/ ./scripts/
+COPY --chown=nextjs:nodejs lib/ ./lib/
 
 # Switch to non-root user
 USER nextjs
