@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { RotateCw } from 'lucide-react';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase, getPlayerDisplayId } from '@/lib/utils/helpers';
-import { initSocket, onRandomGamePlayerSelected, onRandomGameActionTaken, emitRandomGameSpin } from '@/lib/websocket/client';
+import { initSocket, onRandomGamePlayerSelected, onRandomGameActionTaken, emitRandomGameSpin, emitRandomGameWinnerSelected } from '@/lib/websocket/client';
 import { RandomGameLogic } from '@/lib/games/RandomGameLogic';
 import { PointMode } from '@/lib/games/types';
 
@@ -48,6 +48,8 @@ export default function RandomGameComponent({
   const [message, setMessage] = useState('');
   const [spinnerRotation, setSpinnerRotation] = useState(0);
   const [gameStep, setGameStep] = useState<'settings' | 'spinning' | 'actions' | 'ended'>('settings');
+  const [isBlinking, setIsBlinking] = useState(false);
+  const [blinkTimeRemaining, setBlinkTimeRemaining] = useState(0);
 
   // Game logic instance - memoized with full settings
   const [gameLogic] = useState<RandomGameLogic>(() => {
@@ -97,6 +99,27 @@ export default function RandomGameComponent({
       console.error('WebSocket initialization failed:', err);
     }
   }, [isAdmin, gameId, players]);
+
+  // Blinking countdown effect (5 seconds)
+  useEffect(() => {
+    if (!isBlinking || blinkTimeRemaining <= 0) {
+      setIsBlinking(false);
+      setBlinkTimeRemaining(0);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setBlinkTimeRemaining(prev => {
+        const newTime = prev - 1;
+        if (newTime <= 0) {
+          setIsBlinking(false);
+        }
+        return newTime;
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [isBlinking, blinkTimeRemaining]);
 
   // Load game settings on mount
   useEffect(() => {
@@ -260,6 +283,20 @@ export default function RandomGameComponent({
         setSpinning(false);
         setGameStep('actions');
         setMessage(`${selectedPlayerData?.name} is selected!`);
+
+        // Emit winner selected event for 5-second blinking animation
+        if (selectedPlayerData) {
+          emitRandomGameWinnerSelected(
+            roomId,
+            gameId,
+            selectedId,
+            selectedPlayerData.name
+          );
+
+          // Start blinking animation (5 seconds)
+          setIsBlinking(true);
+          setBlinkTimeRemaining(5);
+        }
       }, 2000);
     } catch (err: any) {
       setError(err.message);
@@ -421,7 +458,26 @@ export default function RandomGameComponent({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-4xl mx-auto">
+    <div
+      className={`bg-white rounded-lg shadow-lg p-6 max-w-4xl mx-auto transition-all duration-300 ${
+        isBlinking
+          ? 'ring-4 ring-yellow-300 animate-pulse'
+          : ''
+      }`}
+      style={
+        isBlinking
+          ? {
+              animation: 'blink 0.5s infinite',
+            }
+          : {}
+      }
+    >
+      <style>{`
+        @keyframes blink {
+          0%, 100% { background-color: white; }
+          50% { background-color: #fef08a; }
+        }
+      `}</style>
       <h2 className="text-3xl font-bold mb-6 text-center">🎡 Random Game</h2>
 
       {/* Error Message */}

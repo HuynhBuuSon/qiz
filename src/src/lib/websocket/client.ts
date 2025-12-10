@@ -86,6 +86,10 @@ export const onRandomGameActionTaken = (callback: (data: any) => void) => {
   getSocket()?.on('random:game:action:taken', callback);
 };
 
+export const onRandomGameWinnerSelected = (callback: (data: any) => void) => {
+  getSocket()?.on('random:game:winner:selected', callback);
+};
+
 // Emit functions
 export const emitJoinRoom = (roomId: string, playerData: any) => {
   getSocket()?.emit('room:join', { roomId, playerData });
@@ -138,3 +142,23 @@ export const emitRandomGameAction = (
 export const emitRandomGameEnd = (roomId: string, gameId: string, adminId: string) => {
   getSocket()?.emit('random:game:end', { roomId, gameId, adminId });
 };
+
+/**
+ * Emit winner selected event for blinking animation
+ * Triggers 5-second blinking on presenter and winning player
+ */
+export const emitRandomGameWinnerSelected = (
+  roomId: string,
+  gameId: string,
+  playerId: string,
+  playerName: string
+) => {
+  getSocket()?.emit('random:game:winner:selected', {
+    roomId,
+    gameId,
+    playerId,
+    playerName,
+    timestamp: Date.now(),
+  });
+};
+

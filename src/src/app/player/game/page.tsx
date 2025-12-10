@@ -6,6 +6,7 @@ import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase, getPlayerDisplayId } from '@/lib/utils/helpers';
+import { initSocket, onRandomGameWinnerSelected } from '@/lib/websocket/client';
 import { Home, Edit, Menu, Gamepad2, LogOut } from 'lucide-react';
 import WeightGameComponent from '@/components/WeightGameComponent';
 import RandomGameComponent from '@/components/RandomGameComponent';
@@ -36,6 +37,8 @@ export default function PlayerGame() {
   const [roomPlayers, setRoomPlayers] = useState<any[]>([]);
   const [weightGameStep, setWeightGameStep] = useState<'settings' | 'step1' | 'step2' | 'ended'>('settings');
   const [shouldRedirect, setShouldRedirect] = useState(false);
+  const [isBlinking, setIsBlinking] = useState(false);
+  const [blinkTimeRemaining, setBlinkTimeRemaining] = useState(0);
 
   const playerId = useGameStore((state) => state.playerId);
   const roomId = useGameStore((state) => state.roomId);
@@ -136,6 +139,42 @@ export default function PlayerGame() {
     }
   }, [shouldRedirect, router]);
 
+  // Listen for winner selected event and trigger blinking (only if this player won)
+  useEffect(() => {
+    try {
+      const socket = initSocket();
+      onRandomGameWinnerSelected((data: any) => {
+        if (playerId === data.playerId) {
+          setIsBlinking(true);
+          setBlinkTimeRemaining(5);
+        }
+      });
+    } catch (err) {
+      console.error('Failed to setup winner listener:', err);
+    }
+  }, [playerId]);
+
+  // Blinking countdown effect (5 seconds)
+  useEffect(() => {
+    if (!isBlinking || blinkTimeRemaining <= 0) {
+      setIsBlinking(false);
+      setBlinkTimeRemaining(0);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setBlinkTimeRemaining(prev => {
+        const newTime = prev - 1;
+        if (newTime <= 0) {
+          setIsBlinking(false);
+        }
+        return newTime;
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [isBlinking, blinkTimeRemaining]);
+
   // Sync editData with player data
   useEffect(() => {
     if (player) {
@@ -228,9 +267,25 @@ export default function PlayerGame() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gray-50">
+    <div
+      className={`min-h-screen w-full flex flex-col transition-all duration-300 ${
+        isBlinking ? 'animate-pulse' : ''
+      }`}
+      style={{
+        backgroundColor: isBlinking ? '#fef3c7' : '#f9fafb',
+        animation: isBlinking ? 'playerScreenBlink 0.5s infinite' : 'none',
+      }}
+    >
+      <style>{`
+        @keyframes playerScreenBlink {
+          0%, 100% { background-color: #f9fafb; color: #1f2937; }
+          50% { background-color: #fef3c7; color: #000; }
+        }
+      `}</style>
       {/* Header */}
-      <div className="bg-blue-600 text-white p-4 flex items-center justify-between sticky top-0 z-10">
+      <div className={`text-white p-4 flex items-center justify-between sticky top-0 z-10 transition-all duration-300 ${
+        isBlinking ? 'bg-yellow-400' : 'bg-blue-600'
+      }`}>
         <h1 className="text-xl font-bold">Player</h1>
         <div className="flex items-center gap-2">
           <button

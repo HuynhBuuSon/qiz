@@ -7,6 +7,7 @@ import { useDataRecovery } from '@/hooks/useDataRecovery';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase, getPlayerDisplayId } from '@/lib/utils/helpers';
 import { LogOut } from 'lucide-react';
+import { initSocket, onRandomGameWinnerSelected } from '@/lib/websocket/client';
 import PresentationQRCode from '@/components/presenter/PresentationQRCode';
 import RandomGameComponent from '@/components/RandomGameComponent';
 
@@ -19,6 +20,9 @@ export default function PresenterDisplay() {
   const [activeGame, setActiveGame] = useState<any>(null);
   const [showQR, setShowQR] = useState(false);
   const [shouldRedirect, setShouldRedirect] = useState(false);
+  const [isBlinking, setIsBlinking] = useState(false);
+  const [blinkTimeRemaining, setBlinkTimeRemaining] = useState(0);
+  const [blinkingPlayerId, setBlinkingPlayerId] = useState<string | null>(null);
 
   const loadPlayers = useCallback(async () => {
     if (!currentRoom?.id) return;
@@ -72,6 +76,44 @@ export default function PresenterDisplay() {
       router.push('/presenter/join');
     }
   }, [shouldRedirect, router]);
+
+  // Listen for winner selected event and trigger blinking
+  useEffect(() => {
+    try {
+      const socket = initSocket();
+      onRandomGameWinnerSelected((data: any) => {
+        if (currentRoom?.id === data.roomId) {
+          setBlinkingPlayerId(data.playerId);
+          setIsBlinking(true);
+          setBlinkTimeRemaining(5);
+        }
+      });
+    } catch (err) {
+      console.error('Failed to setup winner listener:', err);
+    }
+  }, [currentRoom?.id]);
+
+  // Blinking countdown effect (5 seconds)
+  useEffect(() => {
+    if (!isBlinking || blinkTimeRemaining <= 0) {
+      setIsBlinking(false);
+      setBlinkTimeRemaining(0);
+      setBlinkingPlayerId(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setBlinkTimeRemaining(prev => {
+        const newTime = prev - 1;
+        if (newTime <= 0) {
+          setIsBlinking(false);
+        }
+        return newTime;
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [isBlinking, blinkTimeRemaining]);
 
   const handleLogout = () => {
     reset();
@@ -140,7 +182,21 @@ export default function PresenterDisplay() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gray-900 text-white p-4 md:p-8">
+    <div
+      className={`min-h-screen w-full text-white p-4 md:p-8 transition-all duration-300 ${
+        isBlinking ? 'animate-pulse' : ''
+      }`}
+      style={{
+        backgroundColor: isBlinking ? '#1f2937' : '#111827',
+        animation: isBlinking ? 'presenterBlink 0.5s infinite' : 'none',
+      }}
+    >
+      <style>{`
+        @keyframes presenterBlink {
+          0%, 100% { background-color: #111827; }
+          50% { background-color: #fef3c7; color: #1f2937; }
+        }
+      `}</style>
       <div className="max-w-7xl mx-auto">
         {/* Header with Logout Button */}
         <div className="mb-8 flex items-center justify-between">
@@ -217,11 +273,23 @@ export default function PresenterDisplay() {
             {sortedPlayers.map((player) => (
               <div
                 key={player.id}
-                className="rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 hover:scale-105"
+                className={`rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 hover:scale-105 ${
+                  isBlinking && blinkingPlayerId === player.id ? 'ring-4 ring-yellow-300' : ''
+                }`}
                 style={{
                   backgroundColor: getPlayerColor(player.rank || 999, sortedPlayers.length),
+                  animation:
+                    isBlinking && blinkingPlayerId === player.id
+                      ? 'playerBlink 0.5s infinite'
+                      : 'none',
                 }}
               >
+                <style>{`
+                  @keyframes playerBlink {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                  }
+                `}</style>
                 <div className="p-4 md:p-6 h-full flex flex-col justify-between">
                   <div className="text-5xl md:text-6xl font-bold text-center mb-4 opacity-90">
                     {player.rank || '—'}
