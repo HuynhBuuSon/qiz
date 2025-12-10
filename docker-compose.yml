@@ -42,8 +42,8 @@ services:
     networks:
       - qiz-network
     restart: unless-stopped
-    # Run migrations on startup if database is ready
-    entrypoint: sh -c "npm run migrate 2>/dev/null || true && exec node server.js"
+    # Run migrations on startup if database is ready, then start the app
+    entrypoint: /bin/sh -c "npx tsx scripts/migrate.ts 2>/dev/null || echo 'Migrations skipped'; exec node server.js"
 
 volumes:
   postgres_data:

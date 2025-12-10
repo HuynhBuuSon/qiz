@@ -12,7 +12,6 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
 RUN npm run build
-RUN npm run migrate
 
 # Ensure public directory exists
 RUN mkdir -p /app/public
@@ -34,8 +33,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy public directory from host if it exists
 COPY public/ ./public/
 COPY --chown=nextjs:nodejs package.json ./
+COPY --chown=nextjs:nodejs package-lock.json* ./
 COPY --chown=nextjs:nodejs scripts/ ./scripts/
 COPY --chown=nextjs:nodejs lib/ ./lib/
+COPY --chown=nextjs:nodejs tsconfig.json ./
+
+# Install dependencies (needed for tsx and database access at runtime)
+RUN npm ci
 
 # Switch to non-root user
 USER nextjs
