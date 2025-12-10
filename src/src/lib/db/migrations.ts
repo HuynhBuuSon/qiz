@@ -41,6 +41,7 @@ const migrations = [
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name VARCHAR(255) NOT NULL,
       room_id UUID NOT NULL REFERENCES game_rooms(id) ON DELETE CASCADE,
+      sequence_number INTEGER,
       joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       score INTEGER DEFAULT 0,
       rank INTEGER,
@@ -48,7 +49,8 @@ const migrations = [
       is_hidden_score BOOLEAN DEFAULT FALSE,
       color VARCHAR(7),
       metadata JSONB DEFAULT '{}',
-      UNIQUE(room_id, name)
+      UNIQUE(room_id, name),
+      UNIQUE(room_id, sequence_number)
     );
     CREATE INDEX IF NOT EXISTS idx_players_room_id ON players(room_id);
   `,

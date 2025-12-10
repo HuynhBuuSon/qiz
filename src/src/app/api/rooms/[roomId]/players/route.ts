@@ -81,12 +81,20 @@ export async function POST(
       );
     }
 
+    // Get the next sequence number for this room
+    const sequenceResult = await query(
+      'SELECT MAX(sequence_number) as max_seq FROM players WHERE room_id = $1',
+      [roomId]
+    );
+    const maxSequence = sequenceResult.rows[0].max_seq || 0;
+    const nextSequence = maxSequence + 1;
+
     const playerId = uuidv4();
     const result = await query(
-      `INSERT INTO players (id, room_id, name, score, rank) 
-       VALUES ($1, $2, $3, 0, NULL)
+      `INSERT INTO players (id, room_id, name, sequence_number, score, rank) 
+       VALUES ($1, $2, $3, $4, 0, NULL)
        RETURNING *`,
-      [playerId, roomId, name.trim()]
+      [playerId, roomId, name.trim(), nextSequence]
     );
 
     return NextResponse.json(result.rows[0], { status: 201 });

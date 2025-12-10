@@ -69,7 +69,7 @@ export default function AdminGames() {
     roomId: currentRoom?.id,
     eventName: 'games:update',
     fetchCallback: loadGames,
-    pollingInterval: 1000,
+    pollingInterval: 3000,
     enabled: Boolean(isReady && currentRoom?.id),
   });
 
@@ -78,7 +78,7 @@ export default function AdminGames() {
     roomId: currentRoom?.id,
     eventName: 'players:update',
     fetchCallback: loadPlayers,
-    pollingInterval: 1000,
+    pollingInterval: 3000,
     enabled: Boolean(isReady && currentRoom?.id),
   });
 

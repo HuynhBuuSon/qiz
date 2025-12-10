@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
-import { toCamelCase } from '@/lib/utils/helpers';
+import { toCamelCase, getPlayerDisplayId } from '@/lib/utils/helpers';
 import { Gamepad2, Settings, LogOut, ArrowRight } from 'lucide-react';
 import AdminDashboardHeader from '@/components/admin/AdminDashboardHeader';
 import PlayerPopup from '@/components/PlayerPopup';
@@ -83,7 +83,7 @@ export default function AdminHome() {
     roomId: currentRoom?.id,
     eventName: 'players:update',
     fetchCallback: loadPlayers,
-    pollingInterval: 1000,
+    pollingInterval: 3000,
     enabled: Boolean(isReady && currentRoom?.id),
   });
 
@@ -92,7 +92,7 @@ export default function AdminHome() {
     roomId: currentRoom?.id,
     eventName: 'game:active',
     fetchCallback: loadActiveGame,
-    pollingInterval: 1000,
+    pollingInterval: 3000,
     enabled: Boolean(isReady && currentRoom?.id),
   });
 
@@ -232,7 +232,7 @@ export default function AdminHome() {
                     </div>
                     <div className="bg-white p-3">
                       <p className="font-semibold text-sm text-gray-800 truncate">
-                        ID: {player.id.substring(0, 8)}
+                        ID: {getPlayerDisplayId(player.sequenceNumber)}
                       </p>
                       <p className="text-xs text-gray-600 truncate">
                         {player.name}

@@ -22,6 +22,11 @@ export const generateCode = (length: number = 6): string => {
   return result;
 };
 
+export const getPlayerDisplayId = (sequenceNumber: number | null | undefined): string => {
+  if (!sequenceNumber) return '—';
+  return `P${String(sequenceNumber).padStart(2, '0')}`;
+};
+
 export const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result

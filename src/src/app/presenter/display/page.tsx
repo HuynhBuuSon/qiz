@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
-import { toCamelCase } from '@/lib/utils/helpers';
+import { toCamelCase, getPlayerDisplayId } from '@/lib/utils/helpers';
 import { LogOut } from 'lucide-react';
 import PresentationQRCode from '@/components/presenter/PresentationQRCode';
 import RandomGameComponent from '@/components/RandomGameComponent';
@@ -83,7 +83,7 @@ export default function PresenterDisplay() {
     roomId: currentRoom?.id,
     eventName: 'players:update',
     fetchCallback: loadPlayers,
-    pollingInterval: 1000, // Faster refresh for presenter
+    pollingInterval: 3000,
     enabled: Boolean(isReady && currentRoom?.id),
   });
 
@@ -92,7 +92,7 @@ export default function PresenterDisplay() {
     roomId: currentRoom?.id,
     eventName: 'game:active',
     fetchCallback: loadActiveGame,
-    pollingInterval: 1000,
+    pollingInterval: 3000,
     enabled: Boolean(isReady && currentRoom?.id),
   });
 
@@ -232,7 +232,7 @@ export default function PresenterDisplay() {
                       {player.name}
                     </p>
                     <p className="text-xs md:text-sm opacity-80 truncate">
-                      ID: {player.id.substring(0, 8)}
+                      ID: {getPlayerDisplayId(player.sequenceNumber)}
                     </p>
                     {!player.isScoreHidden && (
                       <p className="text-2xl md:text-3xl font-bold mt-3">

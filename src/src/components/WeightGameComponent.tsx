@@ -49,6 +49,33 @@ export default function WeightGameComponent({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // Load game settings from API on mount
+  useEffect(() => {
+    const loadGameSettings = async () => {
+      try {
+        const response = await fetch(`/api/rooms/${roomId}/games/${gameId}`);
+        if (!response.ok) return;
+        
+        const game = await response.json();
+        if (game.settings) {
+          const settings = typeof game.settings === 'string' 
+            ? JSON.parse(game.settings) 
+            : game.settings;
+          setGameSettings(settings);
+        }
+        setSettingsLoaded(true);
+      } catch (err) {
+        console.error('Error loading game settings:', err);
+        setSettingsLoaded(true);
+      }
+    };
+
+    if (gameId && roomId) {
+      loadGameSettings();
+    }
+  }, [gameId, roomId]);
 
   // Initialize player weights from props on mount
   useEffect(() => {
@@ -114,7 +141,7 @@ export default function WeightGameComponent({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'active',
-          settings: gameSettings,
+          config: gameSettings,
         }),
       });
 

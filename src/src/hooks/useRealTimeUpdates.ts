@@ -5,7 +5,7 @@ interface UseRealTimeUpdatesOptions {
   roomId?: string | null;
   eventName: string;
   fetchCallback: () => Promise<void>;
-  pollingInterval?: number; // Fallback polling interval in ms (default: 2000)
+  pollingInterval?: number; // Fallback polling interval in ms (default: 3000)
   enabled?: boolean;
 }
 
@@ -17,12 +17,28 @@ export function useRealTimeUpdates({
   roomId,
   eventName,
   fetchCallback,
-  pollingInterval = 2000,
+  pollingInterval = 3000,
   enabled = true,
 }: UseRealTimeUpdatesOptions) {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const socketRef = useRef<any>(null);
   const isConnectedRef = useRef(false);
+  const lastFetchRef = useRef<number>(0);
+  const minIntervalRef = useRef<number>(500); // Prevent rapid re-fetches within 500ms
+
+  // Debounced fetch - prevents multiple calls within a short time
+  const debouncedFetch = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastFetchRef.current < minIntervalRef.current) {
+      return;
+    }
+    lastFetchRef.current = now;
+    try {
+      await fetchCallback();
+    } catch (error) {
+      console.error(`[${eventName}] Fetch error:`, error);
+    }
+  }, [eventName, fetchCallback]);
 
   // Polling fallback - defined before useEffect so it can be used
   const startPolling = useCallback(() => {
@@ -30,21 +46,10 @@ export function useRealTimeUpdates({
     
     console.log(`[${eventName}] Starting polling every ${pollingInterval}ms`);
     
-    // Fetch immediately first
-    try {
-      fetchCallback();
-    } catch (error) {
-      console.error(`[${eventName}] Immediate polling error:`, error);
-    }
-    
     pollingRef.current = setInterval(async () => {
-      try {
-        await fetchCallback();
-      } catch (error) {
-        console.error(`[${eventName}] Polling error:`, error);
-      }
+      await debouncedFetch();
     }, pollingInterval);
-  }, [eventName, pollingInterval, fetchCallback]);
+  }, [eventName, pollingInterval, debouncedFetch]);
 
   // Initialize socket on mount
   useEffect(() => {
@@ -75,11 +80,17 @@ export function useRealTimeUpdates({
       // Subscribe to room-specific events
       if (roomId) {
         socketRef.current.emit('join-room', { roomId });
-        socketRef.current.on(`room:${roomId}:${eventName}`, fetchCallback);
+        socketRef.current.on(`room:${roomId}:${eventName}`, () => {
+          console.log(`[room:${roomId}:${eventName}] Socket event - debounced fetch`);
+          debouncedFetch();
+        });
       }
 
       // Subscribe to global events
-      socketRef.current.on(eventName, fetchCallback);
+      socketRef.current.on(eventName, () => {
+        console.log(`[${eventName}] Socket event - debounced fetch`);
+        debouncedFetch();
+      });
       
       // If socket not connected yet, start polling immediately
       if (!isConnectedRef.current) {
@@ -103,12 +114,12 @@ export function useRealTimeUpdates({
         clearInterval(pollingRef.current);
       }
     };
-  }, [enabled, eventName, roomId, fetchCallback, startPolling]);
+  }, [enabled, eventName, roomId, fetchCallback, startPolling, debouncedFetch]);
 
   // Manual trigger for immediate update
   const triggerUpdate = useCallback(async () => {
-    await fetchCallback();
-  }, [fetchCallback]);
+    await debouncedFetch();
+  }, [debouncedFetch]);
 
   return {
     triggerUpdate,

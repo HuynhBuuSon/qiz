@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
-import { toCamelCase } from '@/lib/utils/helpers';
+import { toCamelCase, getPlayerDisplayId } from '@/lib/utils/helpers';
 import { Home, Edit, Menu, Gamepad2, LogOut } from 'lucide-react';
 import WeightGameComponent from '@/components/WeightGameComponent';
 import RandomGameComponent from '@/components/RandomGameComponent';
@@ -15,6 +15,7 @@ interface PlayerData {
   name: string;
   score: number;
   rank: number;
+  sequenceNumber?: number | null;
   isScoreHidden?: boolean;
   isRankHidden?: boolean;
   startWeight?: number | null;
@@ -147,7 +148,7 @@ export default function PlayerGame() {
     roomId: roomId,
     eventName: `player:${playerId}:update`,
     fetchCallback: fetchPlayerData,
-    pollingInterval: 1000,
+    pollingInterval: 3000,
     enabled: Boolean(isReady && roomId && playerId),
   });
 
@@ -156,7 +157,7 @@ export default function PlayerGame() {
     roomId: roomId,
     eventName: 'game:active',
     fetchCallback: fetchActiveGame,
-    pollingInterval: 1000,
+    pollingInterval: 3000,
     enabled: Boolean(isReady && roomId && playerId),
   });
 
@@ -165,7 +166,7 @@ export default function PlayerGame() {
     roomId: roomId,
     eventName: 'players:update',
     fetchCallback: fetchRoomPlayers,
-    pollingInterval: 1000,
+    pollingInterval: 3000,
     enabled: Boolean(isReady && roomId && playerId),
   });
 
@@ -271,8 +272,8 @@ export default function PlayerGame() {
               <div className="space-y-4">
                 <div>
                   <p className="text-gray-600 text-sm">Player ID</p>
-                  <p className="text-sm font-mono text-gray-800">
-                    {player.id.substring(0, 8)}...
+                  <p className="text-sm font-mono text-gray-800 font-bold">
+                    {getPlayerDisplayId(player.sequenceNumber)}
                   </p>
                 </div>
 
