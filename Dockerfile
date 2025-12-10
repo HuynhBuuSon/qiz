@@ -13,6 +13,9 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
+# Ensure public directory exists
+RUN mkdir -p /app/public
+
 # Stage 3: Runtime
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -27,7 +30,8 @@ RUN adduser -S nextjs -u 1001
 # Copy built application from builder
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+# Copy public directory from host if it exists
+COPY public/ ./public/
 COPY --chown=nextjs:nodejs package.json ./
 
 # Switch to non-root user
