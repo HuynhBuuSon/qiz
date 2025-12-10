@@ -37,6 +37,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    ports:
+      - "3009:3000"
     networks:
       - qiz-network
     restart: unless-stopped
