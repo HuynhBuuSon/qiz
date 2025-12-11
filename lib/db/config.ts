@@ -28,7 +28,7 @@ pool.on('error', (err) => {
 });
 
 pool.on('connect', () => {
-  console.log(`✅ Connected to PostgreSQL at ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
+  // console.log(`✅ Connected to PostgreSQL at ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
 });
 
 export const query = (text: string, params?: any[]) => {
