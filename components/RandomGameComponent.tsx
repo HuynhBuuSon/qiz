@@ -121,6 +121,11 @@ export default function RandomGameComponent({
     return () => clearTimeout(timer);
   }, [isBlinking, blinkTimeRemaining]);
 
+  // Sync currentStep prop with internal gameStep state
+  useEffect(() => {
+    setGameStep(currentStep);
+  }, [currentStep]);
+
   // Load game settings on mount
   useEffect(() => {
     if (!settingsLoaded && isAdmin) {
