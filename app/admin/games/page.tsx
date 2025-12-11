@@ -64,22 +64,22 @@ export default function AdminGames() {
     }
   }, [isReady, currentRoom?.id, loadGames, loadPlayers]);
 
-  // Real-time updates for games
+  // Real-time updates for games - DISABLED when modal is open to prevent constant refreshes
   useRealTimeUpdates({
     roomId: currentRoom?.id,
     eventName: 'games:update',
     fetchCallback: loadGames,
-    pollingInterval: 3000,
-    enabled: Boolean(isReady && currentRoom?.id),
+    pollingInterval: 5000,
+    enabled: Boolean(isReady && currentRoom?.id && !showGameControl),
   });
 
-  // Real-time updates for players
+  // Real-time updates for players - DISABLED when modal is open to prevent constant refreshes
   useRealTimeUpdates({
     roomId: currentRoom?.id,
     eventName: 'players:update',
     fetchCallback: loadPlayers,
-    pollingInterval: 3000,
-    enabled: Boolean(isReady && currentRoom?.id),
+    pollingInterval: 5000,
+    enabled: Boolean(isReady && currentRoom?.id && !showGameControl),
   });
 
   const handleStartGame = async (gameId: string) => {

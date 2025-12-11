@@ -44,8 +44,6 @@ export function useRealTimeUpdates({
   const startPolling = useCallback(() => {
     if (pollingRef.current) return; // Already polling
     
-    console.log(`[${eventName}] Starting polling every ${pollingInterval}ms`);
-    
     pollingRef.current = setInterval(async () => {
       await debouncedFetch();
     }, pollingInterval);
@@ -60,7 +58,6 @@ export function useRealTimeUpdates({
       
       socketRef.current.on('connect', () => {
         isConnectedRef.current = true;
-        console.log(`[${eventName}] WebSocket connected`);
         
         // Stop polling when connected to WebSocket
         if (pollingRef.current) {
@@ -71,7 +68,6 @@ export function useRealTimeUpdates({
 
       socketRef.current.on('disconnect', () => {
         isConnectedRef.current = false;
-        console.log(`[${eventName}] WebSocket disconnected, falling back to polling`);
         
         // Start polling when disconnected from WebSocket
         startPolling();
@@ -81,14 +77,12 @@ export function useRealTimeUpdates({
       if (roomId) {
         socketRef.current.emit('join-room', { roomId });
         socketRef.current.on(`room:${roomId}:${eventName}`, () => {
-          console.log(`[room:${roomId}:${eventName}] Socket event - debounced fetch`);
           debouncedFetch();
         });
       }
 
       // Subscribe to global events
       socketRef.current.on(eventName, () => {
-        console.log(`[${eventName}] Socket event - debounced fetch`);
         debouncedFetch();
       });
       
