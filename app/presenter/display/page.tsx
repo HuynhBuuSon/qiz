@@ -235,7 +235,7 @@ export default function PresenterDisplay() {
             <RandomGameComponent
               gameId={activeGame.id}
               roomId={currentRoom?.id || ''}
-              isAdmin={true}
+              isAdmin={false}
               currentStep={activeGame.status === 'active' ? 'spinning' : 'ended'}
               onGameComplete={() => setActiveGame(null)}
             />
