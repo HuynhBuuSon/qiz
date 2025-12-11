@@ -253,13 +253,13 @@ export default function PlayerGame() {
   if (loading) {
     return (
       <div className="min-h-screen w-full flex flex-col bg-gray-50">
-        <div className="bg-blue-600 text-white p-4 flex items-center justify-between sticky top-0 z-10">
-          <h1 className="text-xl font-bold">Player</h1>
+        <div className="bg-blue-600 text-white px-3 py-3 sm:p-4 flex items-center justify-between sticky top-0 z-10 safe-area-inset-top">
+          <h1 className="text-lg sm:text-xl font-bold">Player</h1>
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading player data...</p>
+            <p className="text-gray-600 text-sm sm:text-base">Loading player data...</p>
           </div>
         </div>
       </div>
@@ -283,21 +283,22 @@ export default function PlayerGame() {
         }
       `}</style>
       {/* Header */}
-      <div className={`text-white p-4 flex items-center justify-between sticky top-0 z-10 transition-all duration-300 ${
+      <div className={`text-white px-3 py-3 sm:p-4 flex items-center justify-between sticky top-0 z-10 transition-all duration-300 safe-area-inset-top ${
         isBlinking ? 'bg-yellow-400' : 'bg-blue-600'
       }`}>
-        <h1 className="text-xl font-bold">Player</h1>
-        <div className="flex items-center gap-2">
+        <h1 className="text-lg sm:text-xl font-bold truncate">Player</h1>
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <button
             onClick={handleLogout}
-            className="p-2 hover:bg-blue-700 rounded flex items-center gap-2"
+            className="p-2 hover:bg-blue-700 rounded active:bg-blue-800 flex items-center gap-1 touch-manipulation"
             title="Logout"
           >
             <LogOut className="w-5 h-5" />
+            <span className="hidden sm:inline text-xs sm:text-sm">Logout</span>
           </button>
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="p-2 hover:bg-blue-700 rounded"
+            className="p-2 hover:bg-blue-700 rounded active:bg-blue-800 touch-manipulation sm:hidden"
           >
             <Menu className="w-6 h-6" />
           </button>
@@ -307,7 +308,7 @@ export default function PlayerGame() {
       {/* Message Alert */}
       {message && (
         <div
-          className={`mx-4 mt-4 p-3 rounded text-sm ${
+          className={`mx-3 sm:mx-4 mt-3 sm:mt-4 p-2 sm:p-3 rounded text-xs sm:text-sm ${
             message.includes('Error')
               ? 'bg-red-100 text-red-700'
               : 'bg-green-100 text-green-700'
@@ -318,44 +319,44 @@ export default function PlayerGame() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 p-4 overflow-auto">
+      <div className="flex-1 px-3 py-4 sm:p-4 overflow-auto">
         {activeTab === 'home' && player && (
-          <div className="max-w-md mx-auto space-y-4">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-2xl font-bold mb-6">Player Information</h2>
+          <div className="max-w-md mx-auto space-y-3 sm:space-y-4">
+            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+              <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Player Information</h2>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <p className="text-gray-600 text-sm">Player ID</p>
-                  <p className="text-sm font-mono text-gray-800 font-bold">
+                  <p className="text-gray-600 text-xs sm:text-sm">Player ID</p>
+                  <p className="text-xs sm:text-sm font-mono text-gray-800 font-bold mt-1">
                     {getPlayerDisplayId(player.sequenceNumber)}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-gray-600 text-sm">Player Name</p>
-                  <p className="text-xl font-semibold text-gray-800">
+                  <p className="text-gray-600 text-xs sm:text-sm">Player Name</p>
+                  <p className="text-lg sm:text-xl font-semibold text-gray-800">
                     {player.name}
                   </p>
                 </div>
 
-                <div className="border-t pt-4">
-                  <p className="text-gray-600 text-sm">Your Rank</p>
-                  <p className="text-4xl font-bold text-blue-600">
+                <div className="border-t pt-3 sm:pt-4">
+                  <p className="text-gray-600 text-xs sm:text-sm">Your Rank</p>
+                  <p className="text-3xl sm:text-4xl font-bold text-blue-600 mt-1">
                     {player.isRankHidden ? '—' : `#${player.rank}`}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-gray-600 text-sm">Your Points</p>
-                  <p className="text-4xl font-bold text-green-600">
+                  <p className="text-gray-600 text-xs sm:text-sm">Your Points</p>
+                  <p className="text-3xl sm:text-4xl font-bold text-green-600 mt-1">
                     {player.isScoreHidden ? '—' : player.score}
                   </p>
                 </div>
 
-                <div className="bg-blue-50 p-4 rounded text-sm text-gray-700">
+                <div className="bg-blue-50 p-3 sm:p-4 rounded text-xs sm:text-sm text-gray-700">
                   <p className="font-semibold mb-2">Current Room Status:</p>
-                  <p>Room: {roomId?.substring(0, 8)}...</p>
+                  <p className="truncate">Room: {roomId?.substring(0, 8)}...</p>
                 </div>
               </div>
             </div>
@@ -364,50 +365,50 @@ export default function PlayerGame() {
 
         {activeTab === 'edit' && editData && (
           <div className="max-w-md mx-auto">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-2xl font-bold mb-6">Edit Profile</h2>
+            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+              <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Edit Profile</h2>
 
-              <form onSubmit={handleEditSubmit} className="space-y-4">
+              <form onSubmit={handleEditSubmit} className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Player Name
                   </label>
                   <input
                     type="text"
                     value={editData.name || ''}
                     disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Score
                   </label>
                   <input
                     type="number"
                     value={editData.score || 0}
                     disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Rank
                   </label>
                   <input
                     type="number"
                     value={editData.rank || 0}
                     disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed text-sm"
                   />
                 </div>
 
                 {activeGame?.type === 'weight' && activeGame?.status === 'active' && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Start Weight
                       </label>
                       <input
@@ -415,13 +416,13 @@ export default function PlayerGame() {
                         value={editData.startWeight || ''}
                         disabled
                         placeholder="Not set"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed text-sm"
                       />
                       <p className="text-xs text-gray-500 mt-1">Set during Step 1 - Read only</p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         End Weight
                       </label>
                       <input
@@ -429,18 +430,18 @@ export default function PlayerGame() {
                         value={editData.endWeight || ''}
                         disabled
                         placeholder="Not set"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed text-sm"
                       />
                       <p className="text-xs text-gray-500 mt-1">Set during Step 2 - Read only</p>
                     </div>
                   </>
                 )}
 
-                <div className="flex gap-2 pt-4">
+                <div className="flex gap-2 pt-3 sm:pt-4">
                   <button
                     type="submit"
                     disabled={editLoading}
-                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+                    className="flex-1 bg-blue-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium text-sm touch-manipulation"
                   >
                     {editLoading ? 'Saving...' : 'Save Changes'}
                   </button>
@@ -451,7 +452,7 @@ export default function PlayerGame() {
                       setActiveTab('home');
                     }}
                     disabled={editLoading}
-                    className="flex-1 bg-gray-300 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-400 disabled:bg-gray-200 font-medium"
+                    className="flex-1 bg-gray-300 text-gray-800 py-2 px-3 sm:px-4 rounded-lg hover:bg-gray-400 active:bg-gray-500 disabled:bg-gray-200 font-medium text-sm touch-manipulation"
                   >
                     Cancel
                   </button>
@@ -485,16 +486,16 @@ export default function PlayerGame() {
                     onGameComplete={() => setActiveGame(null)}
                   />
                 ) : (
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h2 className="text-2xl font-bold mb-6">Game Status</h2>
-                    <p className="text-gray-600">Unknown game type</p>
+                  <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                    <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Game Status</h2>
+                    <p className="text-gray-600 text-sm">Unknown game type</p>
                   </div>
                 )}
               </>
             ) : (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-2xl font-bold mb-6">Active Game</h2>
-                <p className="text-gray-600 text-center">No active game at the moment</p>
+              <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Active Game</h2>
+                <p className="text-gray-600 text-center text-sm">No active game at the moment</p>
               </div>
             )}
           </div>
@@ -502,21 +503,22 @@ export default function PlayerGame() {
       </div>
 
       {/* Footer Menu */}
-      <div className="bg-white border-t border-gray-200 sticky bottom-0">
-        <div className="flex gap-4 p-4 max-w-md mx-auto justify-around">
+      <div className="bg-white border-t border-gray-200 sticky bottom-0 safe-area-inset-bottom">
+        <div className="flex gap-2 sm:gap-4 px-3 py-2 sm:p-4 max-w-md mx-auto justify-around">
           <button
             onClick={() => {
               setActiveTab('home');
               setShowMenu(false);
             }}
-            className={`flex flex-col items-center gap-1 p-2 rounded ${
+            className={`flex flex-col items-center gap-0.5 p-2 sm:p-3 rounded transition-colors touch-manipulation text-xs sm:text-sm ${
               activeTab === 'home'
                 ? 'text-blue-600'
-                : 'text-gray-600 hover:text-gray-800'
+                : 'text-gray-600 hover:text-gray-800 active:text-blue-600'
             }`}
+            title="Home"
           >
-            <Home className="w-6 h-6" />
-            <span className="text-xs">Home</span>
+            <Home className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span>Home</span>
           </button>
 
           <button
@@ -524,14 +526,15 @@ export default function PlayerGame() {
               setActiveTab('game');
               setShowMenu(false);
             }}
-            className={`flex flex-col items-center gap-1 p-2 rounded ${
+            className={`flex flex-col items-center gap-0.5 p-2 sm:p-3 rounded transition-colors touch-manipulation text-xs sm:text-sm ${
               activeTab === 'game'
                 ? 'text-blue-600'
-                : 'text-gray-600 hover:text-gray-800'
+                : 'text-gray-600 hover:text-gray-800 active:text-blue-600'
             }`}
+            title="Game"
           >
-            <Gamepad2 className="w-6 h-6" />
-            <span className="text-xs">Game</span>
+            <Gamepad2 className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span>Game</span>
           </button>
 
           <button
@@ -539,14 +542,15 @@ export default function PlayerGame() {
               setActiveTab('edit');
               setShowMenu(false);
             }}
-            className={`flex flex-col items-center gap-1 p-2 rounded ${
+            className={`flex flex-col items-center gap-0.5 p-2 sm:p-3 rounded transition-colors touch-manipulation text-xs sm:text-sm ${
               activeTab === 'edit'
                 ? 'text-blue-600'
-                : 'text-gray-600 hover:text-gray-800'
+                : 'text-gray-600 hover:text-gray-800 active:text-blue-600'
             }`}
+            title="Edit"
           >
-            <Edit className="w-6 h-6" />
-            <span className="text-xs">Edit</span>
+            <Edit className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span>Edit</span>
           </button>
         </div>
       </div>

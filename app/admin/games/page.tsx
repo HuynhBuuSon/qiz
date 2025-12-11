@@ -211,18 +211,18 @@ export default function AdminGames() {
   if (!currentRoom?.id) {
     return (
       <div className="min-h-screen w-full flex flex-col bg-gray-50">
-        <div className="bg-blue-600 text-white p-4 flex items-center gap-4 sticky top-0 z-10">
+        <div className="bg-blue-600 text-white px-3 py-3 sm:p-4 flex items-center gap-2 sm:gap-4 sticky top-0 z-10 safe-area-inset-top">
           <button
             onClick={() => router.push('/admin/home')}
-            className="p-2 hover:bg-blue-700 rounded flex items-center gap-2"
+            className="p-2 hover:bg-blue-700 rounded active:bg-blue-800 flex-shrink-0 touch-manipulation"
+            title="Back"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back
           </button>
-          <h1 className="text-xl font-bold">Games Management</h1>
+          <h1 className="text-lg sm:text-xl font-bold flex-1 truncate">Games Management</h1>
         </div>
-        <div className="flex-1 p-4 flex items-center justify-center">
-          <div className="text-center text-gray-500">
+        <div className="flex-1 px-4 py-6 sm:p-4 flex items-center justify-center">
+          <div className="text-center text-gray-600 text-sm sm:text-base">
             Please create or select a room first.
           </div>
         </div>
@@ -233,18 +233,18 @@ export default function AdminGames() {
   if (loading) {
     return (
       <div className="min-h-screen w-full flex flex-col bg-gray-50">
-        <div className="bg-blue-600 text-white p-4 flex items-center gap-4 sticky top-0 z-10">
+        <div className="bg-blue-600 text-white px-3 py-3 sm:p-4 flex items-center gap-2 sm:gap-4 sticky top-0 z-10 safe-area-inset-top">
           <button
             onClick={() => router.push('/admin/home')}
-            className="p-2 hover:bg-blue-700 rounded flex items-center gap-2"
+            className="p-2 hover:bg-blue-700 rounded active:bg-blue-800 flex-shrink-0 touch-manipulation"
+            title="Back"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back
           </button>
-          <h1 className="text-xl font-bold">Games Management</h1>
+          <h1 className="text-lg sm:text-xl font-bold flex-1 truncate">Games Management</h1>
         </div>
-        <div className="flex-1 p-4 flex items-center justify-center">
-          <div className="text-center text-gray-500">
+        <div className="flex-1 px-4 py-6 sm:p-4 flex items-center justify-center">
+          <div className="text-center text-gray-600 text-sm sm:text-base">
             Loading games...
           </div>
         </div>
@@ -255,22 +255,22 @@ export default function AdminGames() {
   return (
     <div className="min-h-screen w-full flex flex-col bg-gray-50">
       {/* Header with Back Button */}
-      <div className="bg-blue-600 text-white p-4 flex items-center gap-4 sticky top-0 z-10">
+      <div className="bg-blue-600 text-white px-3 py-3 sm:p-4 flex items-center gap-2 sm:gap-4 sticky top-0 z-10 safe-area-inset-top">
         <button
           onClick={() => router.push('/admin/home')}
-          className="p-2 hover:bg-blue-700 rounded flex items-center gap-2"
+          className="p-2 hover:bg-blue-700 rounded active:bg-blue-800 flex-shrink-0 touch-manipulation"
+          title="Back"
         >
           <ArrowLeft className="w-5 h-5" />
-          Back
         </button>
-        <h1 className="text-xl font-bold">Games Management</h1>
+        <h1 className="text-lg sm:text-xl font-bold flex-1 truncate">Games Management</h1>
       </div>
 
-      <div className="flex-1 p-4 overflow-auto">
+      <div className="flex-1 px-3 py-4 sm:p-4 overflow-auto">
         <div className="max-w-4xl mx-auto w-full">
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
             {error}
           </div>
         )}
@@ -280,7 +280,7 @@ export default function AdminGames() {
             console.log('Add Game button clicked, setting showGameSelector to true');
             setShowGameSelector(true);
           }}
-          className="mb-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="w-full sm:w-auto mb-4 sm:mb-6 px-4 sm:px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium text-sm sm:text-base touch-manipulation"
         >
           + Add Game
         </button>
@@ -290,35 +290,35 @@ export default function AdminGames() {
             No games yet. Create a game to get started.
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {games.map((game) => (
               <div
                 key={game.id}
                 className="bg-white rounded-lg shadow overflow-hidden"
               >
                 <div
-                  className="h-2"
+                  className="h-1 sm:h-2"
                   style={{ backgroundColor: getStatusColor(game.status) }}
                 ></div>
 
-                <div className="p-6 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-800">
+                <div className="p-3 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-800 truncate">
                       {game.name}
                     </h3>
-                    <p className="text-sm text-gray-600">
-                      Type: {game.type} | Status: {game.status}
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                      Type: <span className="font-medium">{game.type}</span> | Status: <span className="font-medium">{game.status}</span>
                     </p>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 sm:gap-2 flex-wrap justify-end w-full sm:w-auto">
                     {game.status === 'pending' && (
                       <button
                         onClick={() => handleGameControlClick(game)}
                         title="Configure & Start Game"
-                        className="p-2 bg-green-100 text-green-600 rounded hover:bg-green-200 transition-colors"
+                        className="p-2 sm:p-2.5 bg-green-100 text-green-600 rounded active:bg-green-200 hover:bg-green-200 transition-colors touch-manipulation flex-shrink-0"
                       >
-                        <Play className="w-5 h-5" />
+                        <Play className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     )}
                     
@@ -326,9 +326,9 @@ export default function AdminGames() {
                       <button
                         onClick={() => handleGameControlClick(game)}
                         title="View Game Control"
-                        className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                        className="p-2 sm:p-2.5 bg-blue-100 text-blue-600 rounded active:bg-blue-200 hover:bg-blue-200 transition-colors touch-manipulation flex-shrink-0"
                       >
-                        <Square className="w-5 h-5" />
+                        <Square className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     )}
 
@@ -336,7 +336,7 @@ export default function AdminGames() {
                       <button
                         onClick={() => handleMoveToStep2(game)}
                         title="Move to Step 2"
-                        className="px-3 py-2 bg-purple-100 text-purple-600 rounded hover:bg-purple-200 transition-colors text-sm font-medium"
+                        className="px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-100 text-purple-600 rounded active:bg-purple-200 hover:bg-purple-200 transition-colors text-xs sm:text-sm font-medium touch-manipulation flex-shrink-0"
                       >
                         Step 2
                       </button>
@@ -345,9 +345,9 @@ export default function AdminGames() {
                     <button
                       title="Delete Game"
                       onClick={() => handleDeleteGame(game.id)}
-                      className="p-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                      className="p-2 sm:p-2.5 bg-red-100 text-red-600 rounded active:bg-red-200 hover:bg-red-200 transition-colors touch-manipulation flex-shrink-0"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
                 </div>
