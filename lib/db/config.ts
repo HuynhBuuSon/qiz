@@ -4,11 +4,11 @@ import path from 'path';
 
 // Load .env.local from project root if it exists
 const envPath = process.env.NODE_ENV === 'production' 
-  ? path.resolve(__dirname, '../../.env.local')
+  ? path.resolve(__dirname, '../../.env')
   : path.resolve(__dirname, '../../../.env.local');
-
+console.log(`Loading environment variables from: ${envPath}`);
 dotenv.config({ path: envPath });
-
+console.log('Environment variables loaded.');
 // Database configuration with fallbacks for Docker and local development
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
@@ -21,7 +21,7 @@ const pool = new Pool({
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
-
+console.log('PostgreSQL pool created.');
 pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
   console.error(`DB Connection Info - Host: ${process.env.DB_HOST}, Port: ${process.env.DB_PORT}, DB: ${process.env.DB_NAME}`);

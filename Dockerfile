@@ -52,4 +52,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
 
 # Start the application
-CMD ["node", "server.js"]
+# For standalone output, server.js is already in the root after COPY
+CMD ["/bin/sh", "-c", "npx tsx scripts/migrate.ts 2>/dev/null || echo 'Migrations skipped'; exec node server.js"]
