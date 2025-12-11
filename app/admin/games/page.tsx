@@ -82,25 +82,6 @@ export default function AdminGames() {
     enabled: Boolean(isReady && currentRoom?.id && !showGameControl),
   });
 
-  const handleStartGame = async (gameId: string) => {
-    try {
-      const response = await fetch(
-        `/api/rooms/${currentRoom?.id}/games/${gameId}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'active' }),
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to start game');
-      
-      loadGames();
-    } catch (err: any) {
-      setError(err.message || 'Failed to start game');
-    }
-  };
-
   const handleGameControlClick = (game: any) => {
     setSelectedGame(game);
     setShowGameControl(true);
