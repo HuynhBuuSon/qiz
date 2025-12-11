@@ -41,7 +41,7 @@ export default function AdminDashboardHeader() {
         <div className="bg-white bg-opacity-90 rounded p-3">
           <p className="text-xs font-semibold text-gray-600 mb-1">Room Number</p>
           <p className="text-lg font-mono font-bold text-gray-800">
-            {currentRoom.joinCode}
+            {currentRoom.roomNumber}
           </p>
         </div>
 

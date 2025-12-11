@@ -11,7 +11,6 @@ function PlayerJoinContent() {
   const searchParams = useSearchParams();
   const [playerName, setPlayerName] = useState('');
   const [roomNumber, setRoomNumber] = useState('');
-  const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,16 +19,12 @@ function PlayerJoinContent() {
   const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
   const setUserRole = useGameStore((state) => state.setUserRole);
 
-  // Load room number and join code from URL parameters
+  // Load room number from URL parameters
   useEffect(() => {
     const urlRoomNumber = searchParams.get('room');
-    const urlJoinCode = searchParams.get('code');
     
     if (urlRoomNumber) {
       setRoomNumber(urlRoomNumber);
-    }
-    if (urlJoinCode) {
-      setJoinCode(urlJoinCode);
     }
   }, [searchParams]);
 
@@ -52,29 +47,21 @@ function PlayerJoinContent() {
         return;
       }
 
-      if (!roomNumber.trim() && !joinCode.trim()) {
-        setError('Either room number or join code is required');
+      if (!roomNumber.trim()) {
+        setError('Room number is required');
         setLoading(false);
         return;
       }
 
-      // 1. Get all rooms and find matching room by number or code
+      // 1. Get all rooms and find matching room by number
       const roomsResponse = await fetch('/api/rooms');
       if (!roomsResponse.ok) throw new Error('Failed to fetch rooms');
       
       const rooms = await roomsResponse.json();
-      let room = null;
-
-      if (roomNumber.trim()) {
-        room = rooms.find((r: any) => r.room_number === parseInt(roomNumber));
-      }
-      
-      if (!room && joinCode.trim()) {
-        room = rooms.find((r: any) => r.join_code === joinCode);
-      }
+      const room = rooms.find((r: any) => r.room_number === parseInt(roomNumber));
       
       if (!room) {
-        setError('Invalid room number or join code. Please check and try again.');
+        setError('Invalid room number. Please check and try again.');
         setLoading(false);
         return;
       }
@@ -158,7 +145,7 @@ function PlayerJoinContent() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Room Number (4-digit)
+                Room Number (4-digit) *
               </label>
               <input
                 type="text"
@@ -167,20 +154,6 @@ function PlayerJoinContent() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 placeholder="e.g., 1234"
                 maxLength={4}
-              />
-              <p className="text-xs text-gray-500 mt-1">Or use join code below</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Join Code
-              </label>
-              <input
-                type="text"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="Enter join code"
               />
             </div>
 

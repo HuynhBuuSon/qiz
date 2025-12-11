@@ -10,23 +10,18 @@ function PresenterJoinContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [roomNumber, setRoomNumber] = useState('');
-  const [presentationCode, setPresentationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const setCurrentRoom = useGameStore((state) => state.setCurrentRoom);
   const setUserRole = useGameStore((state) => state.setUserRole);
 
-  // Load room number and presentation code from URL parameters
+  // Load room number from URL parameters
   useEffect(() => {
     const urlRoomNumber = searchParams.get('room');
-    const urlPresentationCode = searchParams.get('code');
     
     if (urlRoomNumber) {
       setRoomNumber(urlRoomNumber);
-    }
-    if (urlPresentationCode) {
-      setPresentationCode(urlPresentationCode);
     }
   }, [searchParams]);
 
@@ -37,38 +32,23 @@ function PresenterJoinContent() {
 
     try {
       // Validate inputs
-      if (!roomNumber.trim() && !presentationCode.trim()) {
-        setError('Either room number or presentation code is required');
+      if (!roomNumber.trim()) {
+        setError('Room number is required');
         setLoading(false);
         return;
       }
 
-      // Fetch rooms and find matching code
+      // Fetch rooms and find matching room by number
       const roomsResponse = await fetch('/api/rooms');
       if (!roomsResponse.ok) {
         throw new Error('Failed to connect to server');
       }
 
       const rooms = await roomsResponse.json();
-      let room = null;
-
-      if (roomNumber.trim()) {
-        room = rooms.find((r: any) => r.room_number === parseInt(roomNumber));
-      }
-      
-      if (!room && presentationCode.trim()) {
-        room = rooms.find((r: any) => r.presentation_code === presentationCode);
-      }
+      const room = rooms.find((r: any) => r.room_number === parseInt(roomNumber));
 
       if (!room) {
-        setError('Room not found. Please check and try again.');
-        setLoading(false);
-        return;
-      }
-
-      // Verify presentation code if provided
-      if (presentationCode.trim() && room.presentation_code !== presentationCode) {
-        setError('Invalid presentation code. Access denied.');
+        setError('Invalid room number. Please check and try again.');
         setLoading(false);
         return;
       }
@@ -113,7 +93,7 @@ function PresenterJoinContent() {
           <form onSubmit={handleJoin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Room Number (4-digit)
+                Room Number (4-digit) *
               </label>
               <input
                 type="text"
@@ -123,21 +103,6 @@ function PresenterJoinContent() {
                 placeholder="e.g., 1234"
                 disabled={loading}
                 maxLength={4}
-              />
-              <p className="text-xs text-gray-500 mt-1">Or use presentation code below</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Presentation Code
-              </label>
-              <input
-                type="text"
-                value={presentationCode}
-                onChange={(e) => setPresentationCode(e.target.value.toUpperCase())}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
-                placeholder="Enter presentation code"
-                disabled={loading}
               />
             </div>
 
