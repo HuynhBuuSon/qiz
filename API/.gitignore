@@ -1,0 +1,9 @@
+.env
+*.log
+tmp/
+node_modules/
+vendor/
+bin/
+*.exe
+*.test
+*.out

@@ -1,0 +1,137 @@
+package actions
+
+import (
+	"sync"
+
+	"github.com/gobuffalo/buffalo"
+	"github.com/gobuffalo/buffalo-pop/v3/pop/popmw"
+	"github.com/gobuffalo/envy"
+	csrf "github.com/gobuffalo/mw-csrf"
+	forcessl "github.com/gobuffalo/mw-forcessl"
+	paramlogger "github.com/gobuffalo/mw-paramlogger"
+	"github.com/rs/cors"
+	"github.com/unrolled/secure"
+
+	"github.com/canhan/qiz-api/models"
+)
+
+// ENV is used to help switch settings based on where the
+// application is being run. Default is "development".
+var ENV = envy.Get("GO_ENV", "development")
+
+var (
+	app     *buffalo.App
+	appOnce sync.Once
+)
+
+// App is where all routes and middleware for buffalo
+// should be defined. This is the nerve center of your
+// application.
+//
+// Routing, middleware, groups, etc... are declared TOP -> DOWN.
+// This means if you add a middleware to `app` *after* declaring a
+// group, that group will NOT have that middleware. The same is
+// true of resource declarations as well.
+//
+// It also means that routes are checked in the order they are declared.
+// `ServeFiles` is a CATCH-ALL route, so it should always be
+// placed last in the route declarations, as it will prevent routes
+// declared after it to never be called.
+func App() *buffalo.App {
+	appOnce.Do(func() {
+		app = buffalo.New(buffalo.Options{
+			Env:         ENV,
+			SessionName: "_qiz_api_session",
+		})
+
+		// Automatically redirect to SSL
+		app.Use(forceSSL())
+
+		// Log request parameters (filters apply)
+		app.Use(paramlogger.ParameterLogger)
+
+		// CORS configuration
+		corsHandler := cors.New(cors.Options{
+			AllowedOrigins:   []string{envy.Get("CORS_ORIGINS", "http://localhost:3000")},
+			AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+			AllowCredentials: true,
+		})
+		app.Use(func(next buffalo.Handler) buffalo.Handler {
+			return func(c buffalo.Context) error {
+				corsHandler.HandlerFunc(c.Response(), c.Request())
+				return next(c)
+			}
+		})
+
+		// Protect against CSRF attacks (disabled for API-only apps using token auth)
+		app.Use(csrf.New)
+
+		// Wraps each request in a transaction.
+		app.Use(popmw.Transaction(models.DB))
+
+		// Setup and use translations:
+		// app.Use(translations())
+
+		app.GET("/", HomeHandler)
+
+		// API v1 group
+		v1 := app.Group("/api/v1")
+		{
+			// Rooms
+			rooms := v1.Group("/rooms")
+			rooms.GET("/", RoomsListHandler)
+			rooms.POST("/", RoomsCreateHandler)
+			rooms.GET("/{room_id}", RoomsShowHandler)
+			rooms.PUT("/{room_id}", RoomsUpdateHandler)
+			rooms.DELETE("/{room_id}", RoomsDeleteHandler)
+
+			// Games
+			games := v1.Group("/games")
+			games.GET("/", GamesListHandler)
+			games.POST("/", GamesCreateHandler)
+			games.GET("/{game_id}", GamesShowHandler)
+			games.PUT("/{game_id}", GamesUpdateHandler)
+			games.DELETE("/{game_id}", GamesDeleteHandler)
+			games.POST("/{game_id}/start", GamesStartHandler)
+			games.POST("/{game_id}/next", GamesNextHandler)
+			games.POST("/{game_id}/end", GamesEndHandler)
+
+			// Questions
+			questions := v1.Group("/questions")
+			questions.GET("/", QuestionsListHandler)
+			questions.POST("/", QuestionsCreateHandler)
+			questions.GET("/{question_id}", QuestionsShowHandler)
+			questions.PUT("/{question_id}", QuestionsUpdateHandler)
+			questions.DELETE("/{question_id}", QuestionsDeleteHandler)
+
+			// Players
+			players := v1.Group("/players")
+			players.GET("/", PlayersListHandler)
+			players.POST("/", PlayersCreateHandler)
+			players.GET("/{player_id}", PlayersShowHandler)
+
+			// Answers / Submissions
+			v1.POST("/games/{game_id}/submit", SubmitAnswerHandler)
+			v1.GET("/games/{game_id}/results", GameResultsHandler)
+			v1.GET("/games/{game_id}/leaderboard", LeaderboardHandler)
+		}
+
+		// WebSocket
+		app.GET("/ws", WebSocketHandler)
+	})
+
+	return app
+}
+
+// forceSSL will return a middleware that will redirect an incoming request
+// if it is not HTTPS. "http://example.com" => "https://example.com".
+// This middleware does NOT enable SSL. for your application. To do that
+// we recommend using a proxy: https://gobuffalo.io/en/docs/proxy
+// for more information: https://github.com/unrolled/secure/
+func forceSSL() buffalo.MiddlewareFunc {
+	return forcessl.Middleware(secure.Options{
+		SSLRedirect:     ENV == "production",
+		SSLProxyHeaders: map[string]string{"X-Forwarded-Proto": "https"},
+	})
+}
