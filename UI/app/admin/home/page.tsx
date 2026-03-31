@@ -6,6 +6,7 @@ import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase, getPlayerDisplayId } from '@/lib/utils/helpers';
+import { API_URL } from '@/lib/config';
 import { Gamepad2, Settings, LogOut, ArrowRight } from 'lucide-react';
 import AdminDashboardHeader from '@/components/admin/AdminDashboardHeader';
 import PlayerPopup from '@/components/PlayerPopup';
@@ -24,7 +25,7 @@ export default function AdminHome() {
 
   const loadPlayers = useCallback(async () => {
     try {
-      const response = await fetch(`/api/rooms/${currentRoom?.id}/players`);
+      const response = await fetch(`${API_URL}/api/rooms/${currentRoom?.id}/players`);
       if (!response.ok) throw new Error('Failed to load players');
       const data = await response.json();
       setPlayers(Array.isArray(data) ? data.map(toCamelCase) : []);
@@ -38,7 +39,7 @@ export default function AdminHome() {
 
   const loadActiveGame = useCallback(async () => {
     try {
-      const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
+      const response = await fetch(`${API_URL}/api/rooms/${currentRoom?.id}/games`);
       if (!response.ok) return;
       const games = await response.json();
       // Find the active game

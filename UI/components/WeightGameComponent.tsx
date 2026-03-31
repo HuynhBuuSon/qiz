@@ -6,6 +6,7 @@ import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase } from '@/lib/utils/helpers';
 import { WeightGameLogic } from '@/lib/games/WeightGameLogic';
 import { PointMode } from '@/lib/games/types';
+import { API_URL } from '@/lib/config';
 
 interface PlayerWeight {
   playerId: string;
@@ -73,7 +74,7 @@ export default function WeightGameComponent({
   useEffect(() => {
     const loadGameSettings = async () => {
       try {
-        const response = await fetch(`/api/rooms/${roomId}/games/${gameId}`);
+        const response = await fetch(`${API_URL}/api/rooms/${roomId}/games/${gameId}`);
         if (!response.ok) return;
         
         const game = await response.json();
@@ -117,7 +118,7 @@ export default function WeightGameComponent({
   // Fetch player weights from API for real-time updates
   const fetchPlayerWeights = useCallback(async () => {
     try {
-      const response = await fetch(`/api/rooms/${roomId}/players`);
+      const response = await fetch(`${API_URL}/api/rooms/${roomId}/players`);
       if (!response.ok) return;
       
       const data = await response.json();
@@ -154,7 +155,7 @@ export default function WeightGameComponent({
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`/api/rooms/${roomId}/games/${gameId}`, {
+      const response = await fetch(`${API_URL}/api/rooms/${roomId}/games/${gameId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -235,7 +236,7 @@ export default function WeightGameComponent({
       const results = await gameLogic.endGame();
 
       // Step 1: Update game status to 'completed'
-      const statusResponse = await fetch(`/api/rooms/${roomId}/games/${gameId}`, {
+      const statusResponse = await fetch(`${API_URL}/api/rooms/${roomId}/games/${gameId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -249,7 +250,7 @@ export default function WeightGameComponent({
 
       // Step 2: Save results to game_results table using PUT
       const resultsResponse = await fetch(
-        `/api/rooms/${roomId}/games/${gameId}/results`,
+        `${API_URL}/api/rooms/${roomId}/games/${gameId}/results`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

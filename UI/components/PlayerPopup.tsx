@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { API_URL } from '@/lib/config';
 
 interface PlayerPopupProps {
   player: {
@@ -41,7 +42,7 @@ export default function PlayerPopup({
 
     try {
       const response = await fetch(
-        `/api/rooms/${roomId}/players/${player.id}`,
+        `${API_URL}/api/rooms/${roomId}/players/${player.id}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },

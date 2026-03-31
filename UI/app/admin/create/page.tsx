@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { toCamelCase } from '@/lib/utils/helpers';
 import { ArrowLeft } from 'lucide-react';
+import { API_URL } from '@/lib/config';
 
 export default function AdminCreate() {
   const router = useRouter();
@@ -90,7 +91,7 @@ export default function AdminCreate() {
       }
 
       // POST to /api/rooms
-      const response = await fetch('/api/rooms', {
+      const response = await fetch(`${API_URL}/api/rooms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

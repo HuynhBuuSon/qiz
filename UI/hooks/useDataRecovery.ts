@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { useRealTimeUpdates } from './useRealTimeUpdates';
+import { API_URL } from '@/lib/config';
 
 /**
  * Hook to handle data recovery from localStorage on page refresh
@@ -83,7 +84,7 @@ export function useRoomDataSync(shouldAutoRefresh: boolean = true) {
       const id = roomId || currentRoom?.id;
       if (!id) return;
 
-      const response = await fetch(`/api/rooms/${id}`);
+      const response = await fetch(`${API_URL}/api/rooms/${id}`);
       if (response.ok) {
         const data = await response.json();
         // Import dynamically to avoid circular dependency

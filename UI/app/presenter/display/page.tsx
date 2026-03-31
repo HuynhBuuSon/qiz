@@ -8,6 +8,7 @@ import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase, getPlayerDisplayId } from '@/lib/utils/helpers';
 import { LogOut } from 'lucide-react';
 import { initSocket, onRandomGameWinnerSelected } from '@/lib/websocket/client';
+import { API_URL } from '@/lib/config';
 import PresentationQRCode from '@/components/presenter/PresentationQRCode';
 import RandomGameComponent from '@/components/RandomGameComponent';
 
@@ -27,7 +28,7 @@ export default function PresenterDisplay() {
   const loadPlayers = useCallback(async () => {
     if (!currentRoom?.id) return;
     try {
-      const response = await fetch(`/api/rooms/${currentRoom?.id}/players`);
+      const response = await fetch(`${API_URL}/api/rooms/${currentRoom?.id}/players`);
       if (response.ok) {
         const data = await response.json();
         setPlayers(Array.isArray(data) ? data.map(toCamelCase) : []);
@@ -40,7 +41,7 @@ export default function PresenterDisplay() {
   const loadActiveGame = useCallback(async () => {
     if (!currentRoom?.id) return;
     try {
-      const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
+      const response = await fetch(`${API_URL}/api/rooms/${currentRoom?.id}/games`);
       if (response.ok) {
         const games = await response.json();
         const gamesArray = Array.isArray(games) ? games.map(toCamelCase) : [];
@@ -80,7 +81,7 @@ export default function PresenterDisplay() {
   // Listen for winner selected event and trigger blinking
   useEffect(() => {
     try {
-      const socket = initSocket();
+      initSocket(currentRoom?.id || '');
       onRandomGameWinnerSelected((data: any) => {
         if (currentRoom?.id === data.roomId) {
           setBlinkingPlayerId(data.playerId);

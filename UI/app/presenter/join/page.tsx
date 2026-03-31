@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import useGameStore from '@/store/gameStore';
 import { toCamelCase } from '@/lib/utils/helpers';
+import { API_URL } from '@/lib/config';
 
 function PresenterJoinContent() {
   const router = useRouter();
@@ -39,7 +40,7 @@ function PresenterJoinContent() {
       }
 
       // Fetch rooms and find matching room by number
-      const roomsResponse = await fetch('/api/rooms');
+      const roomsResponse = await fetch(`${API_URL}/api/rooms`);
       if (!roomsResponse.ok) {
         throw new Error('Failed to connect to server');
       }

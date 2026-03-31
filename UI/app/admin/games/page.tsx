@@ -6,6 +6,7 @@ import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase } from '@/lib/utils/helpers';
+import { API_URL } from '@/lib/config';
 import { Trash2, Edit, Play, Square, ArrowLeft } from 'lucide-react';
 import GameSelectorModal from '@/components/admin/GameSelectorModal';
 import GameSettingsModal from '@/components/admin/GameSettingsModal';
@@ -26,7 +27,7 @@ export default function AdminGames() {
 
   const loadPlayers = useCallback(async () => {
     try {
-      const response = await fetch(`/api/rooms/${currentRoom?.id}/players`);
+      const response = await fetch(`${API_URL}/api/rooms/${currentRoom?.id}/players`);
 
       if (!response.ok) throw new Error('Failed to load players');
 
@@ -40,7 +41,7 @@ export default function AdminGames() {
   const loadGames = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/rooms/${currentRoom?.id}/games`);
+      const response = await fetch(`${API_URL}/api/rooms/${currentRoom?.id}/games`);
 
       if (!response.ok) throw new Error('Failed to load games');
 
@@ -97,7 +98,7 @@ export default function AdminGames() {
     if (selectedGame) {
       try {
         const response = await fetch(
-          `/api/rooms/${currentRoom?.id}/games/${selectedGame.id}`,
+          `${API_URL}/api/rooms/${currentRoom?.id}/games/${selectedGame.id}`,
           {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -124,7 +125,7 @@ export default function AdminGames() {
 
     try {
       const response = await fetch(
-        `/api/rooms/${currentRoom?.id}/games/${gameId}`,
+        `${API_URL}/api/rooms/${currentRoom?.id}/games/${gameId}`,
         { method: 'DELETE' }
       );
 
@@ -144,7 +145,7 @@ export default function AdminGames() {
   const handleSaveGameSettings = async (settings: any) => {
     try {
       const response = await fetch(
-        `/api/rooms/${currentRoom?.id}/games`,
+        `${API_URL}/api/rooms/${currentRoom?.id}/games`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -8,6 +8,7 @@ import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { toCamelCase, getPlayerDisplayId } from '@/lib/utils/helpers';
 import { initSocket, onRandomGameWinnerSelected } from '@/lib/websocket/client';
 import { Home, Edit, Menu, Gamepad2, LogOut } from 'lucide-react';
+import { API_URL } from '@/lib/config';
 import WeightGameComponent from '@/components/WeightGameComponent';
 import RandomGameComponent from '@/components/RandomGameComponent';
 
@@ -49,7 +50,7 @@ export default function PlayerGame() {
     if (!roomId || !playerId) return;
     try {
       const response = await fetch(
-        `/api/rooms/${roomId}/players/${playerId}`
+        `${API_URL}/api/rooms/${roomId}/players/${playerId}`
       );
       if (!response.ok) throw new Error('Failed to fetch player');
       const data = await response.json();
@@ -64,7 +65,7 @@ export default function PlayerGame() {
   const fetchActiveGame = useCallback(async () => {
     if (!roomId || !playerId) return;
     try {
-      const response = await fetch(`/api/rooms/${roomId}/games`);
+      const response = await fetch(`${API_URL}/api/rooms/${roomId}/games`);
       if (!response.ok) return;
       const games = await response.json();
       const gamesArray = Array.isArray(games) ? games.map(toCamelCase) : [];
@@ -75,7 +76,7 @@ export default function PlayerGame() {
         
         // For weight games, determine current step based on player weights
         if (active.type === 'weight') {
-          const playerResponse = await fetch(`/api/rooms/${roomId}/players/${playerId}`);
+          const playerResponse = await fetch(`${API_URL}/api/rooms/${roomId}/players/${playerId}`);
           if (playerResponse.ok) {
             const playerData = await playerResponse.json();
             const camelPlayer = toCamelCase(playerData);
@@ -105,7 +106,7 @@ export default function PlayerGame() {
   const fetchRoomPlayers = useCallback(async () => {
     if (!roomId) return;
     try {
-      const response = await fetch(`/api/rooms/${roomId}/players`);
+      const response = await fetch(`${API_URL}/api/rooms/${roomId}/players`);
       if (!response.ok) return;
       const players = await response.json();
       setRoomPlayers(Array.isArray(players) ? players.map(toCamelCase) : []);
@@ -142,7 +143,7 @@ export default function PlayerGame() {
   // Listen for winner selected event and trigger blinking (only if this player won)
   useEffect(() => {
     try {
-      const socket = initSocket();
+      initSocket(roomId || '');
       onRandomGameWinnerSelected((data: any) => {
         if (playerId === data.playerId) {
           setIsBlinking(true);
@@ -227,7 +228,7 @@ export default function PlayerGame() {
       setMessage('');
 
       const response = await fetch(
-        `/api/rooms/${roomId}/players/${playerId}`,
+        `${API_URL}/api/rooms/${roomId}/players/${playerId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },

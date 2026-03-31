@@ -1,164 +1,155 @@
-import io, { Socket } from 'socket.io-client';
+import { WS_URL } from '@/lib/config';
 
-let socket: Socket | null = null;
+type EventCallback = (data: any) => void;
 
-export const initSocket = (url: string = window.location.origin) => {
-  if (socket) return socket;
+// Per-room WebSocket hub with auto-reconnect and event routing
+class WSHub {
+  private sockets = new Map<string, WebSocket>();
+  private listeners = new Map<string, Map<string, Set<EventCallback>>>();
+  private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private shouldReconnect = new Map<string, boolean>();
 
-  socket = io(url, {
-    path: '/api/socket.io',
-    addTrailingSlash: false,
-    transports: ['websocket', 'polling'],
-  });
+  connect(roomId: string): void {
+    if (this.sockets.get(roomId)?.readyState === WebSocket.OPEN) return;
 
-  socket.on('connect', () => {
-    console.log('WebSocket connected');
-  });
+    this.shouldReconnect.set(roomId, true);
+    const url = `${WS_URL}/ws?room_id=${encodeURIComponent(roomId)}`;
+    const ws = new WebSocket(url);
+    this.sockets.set(roomId, ws);
 
-  socket.on('disconnect', () => {
-    console.log('WebSocket disconnected');
-  });
+    ws.onopen = () => {
+      const timer = this.reconnectTimers.get(roomId);
+      if (timer) { clearTimeout(timer); this.reconnectTimers.delete(roomId); }
+      this._emit(roomId, 'connect', null);
+    };
 
-  socket.on('error', (error) => {
-    console.error('WebSocket error:', error);
-  });
+    ws.onclose = () => {
+      this.sockets.delete(roomId);
+      this._emit(roomId, 'disconnect', null);
+      if (this.shouldReconnect.get(roomId)) {
+        const timer = setTimeout(() => this.connect(roomId), 2000);
+        this.reconnectTimers.set(roomId, timer);
+      }
+    };
 
-  return socket;
-};
+    ws.onerror = () => {
+      this._emit(roomId, 'error', null);
+    };
 
-export const getSocket = () => {
-  return socket;
-};
-
-export const disconnectSocket = () => {
-  if (socket) {
-    socket.disconnect();
-    socket = null;
+    ws.onmessage = (event: MessageEvent) => {
+      try {
+        const msg = JSON.parse(event.data as string);
+        if (msg && typeof msg.type === 'string') {
+          this._emit(roomId, msg.type, msg.payload ?? null);
+        }
+      } catch { /* ignore malformed messages */ }
+    };
   }
+
+  disconnect(roomId: string): void {
+    this.shouldReconnect.set(roomId, false);
+    const timer = this.reconnectTimers.get(roomId);
+    if (timer) { clearTimeout(timer); this.reconnectTimers.delete(roomId); }
+    const ws = this.sockets.get(roomId);
+    if (ws) { ws.close(); this.sockets.delete(roomId); }
+    this.listeners.delete(roomId);
+  }
+
+  on(roomId: string, event: string, cb: EventCallback): void {
+    if (!this.listeners.has(roomId)) this.listeners.set(roomId, new Map());
+    const room = this.listeners.get(roomId)!;
+    if (!room.has(event)) room.set(event, new Set());
+    room.get(event)!.add(cb);
+  }
+
+  off(roomId: string, event: string, cb: EventCallback): void {
+    this.listeners.get(roomId)?.get(event)?.delete(cb);
+  }
+
+  send(roomId: string, type: string, payload: any): void {
+    const ws = this.sockets.get(roomId);
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type, payload }));
+    }
+  }
+
+  isConnected(roomId: string): boolean {
+    return this.sockets.get(roomId)?.readyState === WebSocket.OPEN;
+  }
+
+  private _emit(roomId: string, event: string, data: any): void {
+    this.listeners.get(roomId)?.get(event)?.forEach(cb => {
+      try { cb(data); } catch { /* ignore listener errors */ }
+    });
+  }
+}
+
+export const wsHub = new WSHub();
+
+// ---------------------------------------------------------------------------
+// Backward-compatible singleton helpers (use activeRoomId set by initSocket)
+// ---------------------------------------------------------------------------
+
+let activeRoomId: string | null = null;
+
+export const initSocket = (roomId: string): void => {
+  activeRoomId = roomId;
+  wsHub.connect(roomId);
 };
 
-// Event handlers
-export const onRoomUpdate = (callback: (data: any) => void) => {
-  getSocket()?.on('room:update', callback);
+export const disconnectSocket = (): void => {
+  if (activeRoomId) wsHub.disconnect(activeRoomId);
+  activeRoomId = null;
 };
 
-export const onPlayersUpdate = (callback: (data: any) => void) => {
-  getSocket()?.on('players:update', callback);
-};
+export const isConnected = (): boolean =>
+  activeRoomId ? wsHub.isConnected(activeRoomId) : false;
 
-export const onGameUpdate = (callback: (data: any) => void) => {
-  getSocket()?.on('game:update', callback);
-};
+// Event subscriptions — all scoped to the active room
+export const onRoomUpdate = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'room:update', cb);
+export const onPlayersUpdate = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'players:update', cb);
+export const onGameUpdate = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'game:update', cb);
+export const onPlayerJoined = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'player:joined', cb);
+export const onPlayerLeft = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'player:left', cb);
+export const onGameStarted = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'game:started', cb);
+export const onGameEnded = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'game:ended', cb);
+export const onPointsUpdated = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'points:updated', cb);
+export const onRandomGameSpinning = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'randomGame:spinning', cb);
+export const onRandomGameSpinComplete = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'randomGame:spinComplete', cb);
+export const onRandomGamePlayerSelected = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'randomGame:playerSelected', cb);
+export const onRandomGameActionTaken = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'randomGame:actionTaken', cb);
+export const onRandomGameWinnerSelected = (cb: EventCallback) => activeRoomId && wsHub.on(activeRoomId, 'randomGame:winnerSelected', cb);
 
-export const onPlayerJoined = (callback: (data: any) => void) => {
-  getSocket()?.on('player:joined', callback);
-};
+// Emit helpers — relay messages through the server to all clients in the room
+export const emitJoinRoom = (roomId: string, playerData: any) =>
+  wsHub.send(roomId, 'room:join', { roomId, playerData });
 
-export const onPlayerLeft = (callback: (data: any) => void) => {
-  getSocket()?.on('player:left', callback);
-};
+export const emitLeaveRoom = (roomId: string) =>
+  wsHub.send(roomId, 'room:leave', { roomId });
 
-export const onGameStarted = (callback: (data: any) => void) => {
-  getSocket()?.on('game:started', callback);
-};
+export const emitGameUpdate = (roomId: string, gameData: any) =>
+  wsHub.send(roomId, 'game:update', { roomId, gameData });
 
-export const onGameEnded = (callback: (data: any) => void) => {
-  getSocket()?.on('game:ended', callback);
-};
+export const emitPlayersUpdate = (roomId: string, players: any) =>
+  wsHub.send(roomId, 'players:update', { roomId, players });
 
-export const onPointsUpdated = (callback: (data: any) => void) => {
-  getSocket()?.on('points:updated', callback);
-};
+export const emitRandomGameSpin = (roomId: string, gameId: string, adminId: string) =>
+  wsHub.send(roomId, 'randomGame:spinning', { roomId, gameId, adminId });
 
-export const onRandomGameSpinning = (callback: (data: any) => void) => {
-  getSocket()?.on('random:game:spinning', callback);
-};
-
-export const onRandomGameSpinComplete = (callback: (data: any) => void) => {
-  getSocket()?.on('random:game:spin:complete', callback);
-};
-
-export const onRandomGamePlayerSelected = (callback: (data: any) => void) => {
-  getSocket()?.on('random:game:player:selected', callback);
-};
-
-export const onRandomGameActionTaken = (callback: (data: any) => void) => {
-  getSocket()?.on('random:game:action:taken', callback);
-};
-
-export const onRandomGameWinnerSelected = (callback: (data: any) => void) => {
-  getSocket()?.on('random:game:winner:selected', callback);
-};
-
-// Emit functions
-export const emitJoinRoom = (roomId: string, playerData: any) => {
-  getSocket()?.emit('room:join', { roomId, playerData });
-};
-
-export const emitLeaveRoom = (roomId: string) => {
-  getSocket()?.emit('room:leave', { roomId });
-};
-
-export const emitGameUpdate = (roomId: string, gameData: any) => {
-  getSocket()?.emit('game:update', { roomId, gameData });
-};
-
-export const emitPlayersUpdate = (roomId: string, players: any) => {
-  getSocket()?.emit('players:update', { roomId, players });
-};
-
-/**
- * Emit admin-only spin request
- * Only admins can trigger spins
- */
-export const emitRandomGameSpin = (roomId: string, gameId: string, adminId: string) => {
-  getSocket()?.emit('random:game:spin', { roomId, gameId, adminId });
-};
-
-/**
- * Emit admin action (reward/punish/nothing)
- * Only admins can take actions
- */
 export const emitRandomGameAction = (
   roomId: string,
   gameId: string,
   playerId: string,
   action: 'reward' | 'punish' | 'nothing',
-  adminId: string
-) => {
-  getSocket()?.emit('random:game:action', {
-    roomId,
-    gameId,
-    playerId,
-    action,
-    adminId,
-  });
-};
+  adminId: string,
+) => wsHub.send(roomId, 'randomGame:actionTaken', { roomId, gameId, playerId, action, adminId });
 
-/**
- * Emit end game request
- * Only admins can end the game
- */
-export const emitRandomGameEnd = (roomId: string, gameId: string, adminId: string) => {
-  getSocket()?.emit('random:game:end', { roomId, gameId, adminId });
-};
+export const emitRandomGameEnd = (roomId: string, gameId: string, adminId: string) =>
+  wsHub.send(roomId, 'game:ended', { roomId, gameId, adminId });
 
-/**
- * Emit winner selected event for blinking animation
- * Triggers 5-second blinking on presenter and winning player
- */
 export const emitRandomGameWinnerSelected = (
   roomId: string,
   gameId: string,
   playerId: string,
-  playerName: string
-) => {
-  getSocket()?.emit('random:game:winner:selected', {
-    roomId,
-    gameId,
-    playerId,
-    playerName,
-    timestamp: Date.now(),
-  });
-};
-
+  playerName: string,
+) => wsHub.send(roomId, 'randomGame:winnerSelected', { roomId, gameId, playerId, playerName, timestamp: Date.now() });

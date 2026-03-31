@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { toCamelCase } from '@/lib/utils/helpers';
+import { API_URL } from '@/lib/config';
 import { ArrowLeft } from 'lucide-react';
 
 function PlayerJoinContent() {
@@ -54,7 +55,7 @@ function PlayerJoinContent() {
       }
 
       // 1. Get all rooms and find matching room by number
-      const roomsResponse = await fetch('/api/rooms');
+      const roomsResponse = await fetch(`${API_URL}/api/rooms`);
       if (!roomsResponse.ok) throw new Error('Failed to fetch rooms');
       
       const rooms = await roomsResponse.json();
@@ -78,7 +79,7 @@ function PlayerJoinContent() {
 
       // 2. Add player to room
       const playerResponse = await fetch(
-        `/api/rooms/${convertedRoom.id}/players`,
+        `${API_URL}/api/rooms/${convertedRoom.id}/players`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

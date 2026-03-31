@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import useGameStore from '@/store/gameStore';
 import { useDataRecovery } from '@/hooks/useDataRecovery';
 import { Copy, Check, ArrowLeft } from 'lucide-react';
+import { API_URL } from '@/lib/config';
 
 export default function AdminSettings() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export default function AdminSettings() {
 
   const handleSave = async () => {
     try {
-      const response = await fetch(`/api/rooms/${currentRoom?.id}`, {
+      const response = await fetch(`${API_URL}/api/rooms/${currentRoom?.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

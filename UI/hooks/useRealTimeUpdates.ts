@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { initSocket, getSocket } from '@/lib/websocket/client';
+import { wsHub } from '@/lib/websocket/client';
 
 interface UseRealTimeUpdatesOptions {
   roomId?: string | null;
@@ -21,7 +21,6 @@ export function useRealTimeUpdates({
   enabled = true,
 }: UseRealTimeUpdatesOptions) {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const socketRef = useRef<any>(null);
   const isConnectedRef = useRef(false);
   const lastFetchRef = useRef<number>(0);
   const minIntervalRef = useRef<number>(500); // Prevent rapid re-fetches within 500ms
@@ -51,59 +50,39 @@ export function useRealTimeUpdates({
 
   // Initialize socket on mount
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !roomId) return;
 
-    try {
-      socketRef.current = initSocket();
-      
-      socketRef.current.on('connect', () => {
-        isConnectedRef.current = true;
-        
-        // Stop polling when connected to WebSocket
-        if (pollingRef.current) {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-        }
-      });
+    wsHub.connect(roomId);
 
-      socketRef.current.on('disconnect', () => {
-        isConnectedRef.current = false;
-        
-        // Start polling when disconnected from WebSocket
-        startPolling();
-      });
-
-      // Subscribe to room-specific events
-      if (roomId) {
-        socketRef.current.emit('join-room', { roomId });
-        socketRef.current.on(`room:${roomId}:${eventName}`, () => {
-          debouncedFetch();
-        });
+    const onConnect = () => {
+      isConnectedRef.current = true;
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
       }
+    };
 
-      // Subscribe to global events
-      socketRef.current.on(eventName, () => {
-        debouncedFetch();
-      });
-      
-      // If socket not connected yet, start polling immediately
-      if (!isConnectedRef.current) {
-        startPolling();
-      }
-    } catch (error) {
-      console.error(`[${eventName}] Failed to initialize socket, using polling:`, error);
+    const onDisconnect = () => {
+      isConnectedRef.current = false;
+      startPolling();
+    };
+
+    const onEvent = () => { debouncedFetch(); };
+
+    wsHub.on(roomId, 'connect', onConnect);
+    wsHub.on(roomId, 'disconnect', onDisconnect);
+    wsHub.on(roomId, eventName, onEvent);
+
+    // If not yet connected, start polling immediately as fallback
+    if (!wsHub.isConnected(roomId)) {
       startPolling();
     }
 
     return () => {
-      // Cleanup on unmount
-      if (socketRef.current) {
-        if (roomId) {
-          socketRef.current.off(`room:${roomId}:${eventName}`);
-        }
-        socketRef.current.off(eventName);
-      }
-      
+      wsHub.off(roomId, 'connect', onConnect);
+      wsHub.off(roomId, 'disconnect', onDisconnect);
+      wsHub.off(roomId, eventName, onEvent);
+
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
       }

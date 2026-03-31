@@ -1,4 +1,5 @@
 // Weight Game Calculation Logic
+import { API_URL } from '@/lib/config';
 
 export function calculateWeightRange(
   startWeight: number, 
@@ -88,7 +89,7 @@ export async function calculateWeightGameResults(
   try {
     // 1. Get all weight entries for this game
     const entriesResponse = await fetch(
-      `/api/rooms/${roomId}/games/${gameId}/weight/entries`
+      `${API_URL}/api/rooms/${roomId}/games/${gameId}/weight/entries`
     );
     const entries = await entriesResponse.json();
 
@@ -118,7 +119,7 @@ export async function calculateWeightGameResults(
     }));
 
     await fetch(
-      `/api/rooms/${roomId}/games/${gameId}/results`,
+      `${API_URL}/api/rooms/${roomId}/games/${gameId}/results`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -130,7 +131,7 @@ export async function calculateWeightGameResults(
     for (const result of results) {
       const currentScore = await getPlayerScore(roomId, result.playerId);
       await fetch(
-        `/api/rooms/${roomId}/players/${result.playerId}`,
+        `${API_URL}/api/rooms/${roomId}/players/${result.playerId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -151,7 +152,7 @@ export async function calculateWeightGameResults(
 
 async function getPlayerScore(roomId: string, playerId: string): Promise<number> {
   const response = await fetch(
-    `/api/rooms/${roomId}/players/${playerId}`
+    `${API_URL}/api/rooms/${roomId}/players/${playerId}`
   );
   const player = await response.json();
   return player.score || 0;

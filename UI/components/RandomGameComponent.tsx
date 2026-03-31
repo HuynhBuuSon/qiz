@@ -7,6 +7,7 @@ import { toCamelCase, getPlayerDisplayId } from '@/lib/utils/helpers';
 import { initSocket, onRandomGamePlayerSelected, onRandomGameActionTaken, emitRandomGameSpin, emitRandomGameWinnerSelected } from '@/lib/websocket/client';
 import { RandomGameLogic } from '@/lib/games/RandomGameLogic';
 import { PointMode } from '@/lib/games/types';
+import { API_URL } from '@/lib/config';
 
 interface RandomGameComponentProps {
   gameId: string;
@@ -68,7 +69,7 @@ export default function RandomGameComponent({
     if (!isAdmin) return;
 
     try {
-      const socket = initSocket();
+      initSocket(roomId);
       
       // Listen for spin complete event
       onRandomGamePlayerSelected((data: any) => {
@@ -136,7 +137,7 @@ export default function RandomGameComponent({
   // Load players for the spinner
   const loadPlayers = useCallback(async () => {
     try {
-      const response = await fetch(`/api/rooms/${roomId}/players`);
+      const response = await fetch(`${API_URL}/api/rooms/${roomId}/players`);
       if (!response.ok) throw new Error('Failed to load players');
       const data = await response.json();
       const camelCasePlayers = toCamelCase(data);
@@ -150,7 +151,7 @@ export default function RandomGameComponent({
   // Load game settings from API
   const loadGameSettings = async () => {
     try {
-      const response = await fetch(`/api/rooms/${roomId}/games/${gameId}`);
+      const response = await fetch(`${API_URL}/api/rooms/${roomId}/games/${gameId}`);
       if (!response.ok) throw new Error('Failed to load game settings');
       const game = await response.json();
       const camelGame = toCamelCase(game);
@@ -179,7 +180,7 @@ export default function RandomGameComponent({
 
     try {
       const response = await fetch(
-        `/api/rooms/${roomId}/games/${gameId}/random/winners`
+        `${API_URL}/api/rooms/${roomId}/games/${gameId}/random/winners`
       );
       if (response.ok) {
         const winners = await response.json();
@@ -208,7 +209,7 @@ export default function RandomGameComponent({
     setError('');
     try {
       const response = await fetch(
-        `/api/rooms/${roomId}/games/${gameId}`,
+        `${API_URL}/api/rooms/${roomId}/games/${gameId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -273,7 +274,7 @@ export default function RandomGameComponent({
       }
 
       // Emit spin via WebSocket (admin only)
-      const socket = initSocket();
+      initSocket(roomId);
       const adminId = 'admin'; // TODO: Get from auth context
       emitRandomGameSpin(roomId, gameId, adminId);
 
@@ -339,7 +340,7 @@ export default function RandomGameComponent({
       // Update player score based on action
       if (pointsToAdd !== 0) {
         const response = await fetch(
-          `/api/rooms/${roomId}/players/${selectedPlayer.id}`,
+          `${API_URL}/api/rooms/${roomId}/players/${selectedPlayer.id}`,
           {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -354,7 +355,7 @@ export default function RandomGameComponent({
 
       // Record the admin action in winners table
       const recordResponse = await fetch(
-        `/api/rooms/${roomId}/games/${gameId}/random/winners`,
+        `${API_URL}/api/rooms/${roomId}/games/${gameId}/random/winners`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -406,7 +407,7 @@ export default function RandomGameComponent({
 
     try {
       // Get all players for final ranking
-      const playersResponse = await fetch(`/api/rooms/${roomId}/players`);
+      const playersResponse = await fetch(`${API_URL}/api/rooms/${roomId}/players`);
       if (!playersResponse.ok) throw new Error('Failed to fetch players');
       const allPlayers = await playersResponse.json();
 
@@ -424,7 +425,7 @@ export default function RandomGameComponent({
 
       // Update game status to completed
       const updateResponse = await fetch(
-        `/api/rooms/${roomId}/games/${gameId}`,
+        `${API_URL}/api/rooms/${roomId}/games/${gameId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -436,7 +437,7 @@ export default function RandomGameComponent({
 
       // Save game results - API will calculate rankings
       const resultsResponse = await fetch(
-        `/api/rooms/${roomId}/games/${gameId}/results`,
+        `${API_URL}/api/rooms/${roomId}/games/${gameId}/results`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
