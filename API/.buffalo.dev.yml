@@ -1,0 +1,16 @@
+app_root: "."
+ignored_folders:
+  - vendor
+  - log
+  - logs
+  - tmp
+  - node_modules
+  - bin
+  - .git
+  - .heroku
+build_flags: []
+build_delay: 200ns
+binary_name: "./bin/qiz-api"
+cmd_flags: []
+enable_colors: true
+log_name: "Buffalo"

@@ -1,271 +1,166 @@
 package actions
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/canhan/qiz-api/models"
 	"github.com/gobuffalo/buffalo"
-	"github.com/gobuffalo/pop/v6"
 )
 
-// GamesListHandler returns a list of games.
+// GamesListHandler GET /api/rooms/{room_id}/games
 func GamesListHandler(c buffalo.Context) error {
-	games := &models.Games{}
-
-	if err := models.DB.All(games); err != nil {
-		return err
+	roomID := c.Param("room_id")
+	if ok, err := roomExists(roomID); err != nil || !ok {
+		return c.Error(http.StatusNotFound, errNotFound("room"))
 	}
-
+	var games []models.Game
+	if err := models.SQL.Select(&games, `SELECT * FROM games WHERE room_id=$1 ORDER BY created_at DESC`, roomID); err != nil {
+		return c.Error(http.StatusInternalServerError, err)
+	}
 	return c.Render(http.StatusOK, r.JSON(games))
 }
 
-// GamesCreateHandler creates a new game.
+// GamesCreateHandler POST /api/rooms/{room_id}/games
 func GamesCreateHandler(c buffalo.Context) error {
-	game := &models.Game{}
-
-	if err := c.Bind(game); err != nil {
-		return err
+	roomID := c.Param("room_id")
+	if ok, err := roomExists(roomID); err != nil || !ok {
+		return c.Error(http.StatusNotFound, errNotFound("room"))
 	}
 
-	tx, ok := c.Value("tx").(*pop.Connection)
-	if !ok {
-		return c.Error(http.StatusInternalServerError, fmt.Errorf("no transaction found"))
+	var body struct {
+		Name     string          `json:"name"`
+		Type     string          `json:"type"`
+		Settings json.RawMessage `json:"settings"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return c.Error(http.StatusBadRequest, err)
+	}
+	body.Type = strings.ToLower(body.Type)
+	if body.Type != "weight" && body.Type != "random" {
+		return c.Error(http.StatusBadRequest, errMsg("type must be 'weight' or 'random'"))
 	}
 
-	verrs, err := tx.ValidateAndCreate(game)
-	if err != nil {
-		return err
+	var maxOrder *int
+	if err := models.SQL.Get(&maxOrder, `SELECT MAX(game_order) FROM games WHERE room_id=$1`, roomID); err != nil {
+		return c.Error(http.StatusInternalServerError, err)
+	}
+	nextOrder := 1
+	if maxOrder != nil {
+		nextOrder = *maxOrder + 1
 	}
 
-	if verrs.HasAny() {
-		return c.Render(http.StatusUnprocessableEntity, r.JSON(verrs))
+	settings := models.RawJSON(body.Settings)
+	if len(settings) == 0 {
+		settings = models.RawJSON(`{}`)
 	}
 
-	return c.Render(http.StatusCreated, r.JSON(game))
+	var game models.Game
+	if err := models.SQL.QueryRowx(
+		`INSERT INTO games (room_id, name, type, game_order, status, settings)
+		 VALUES ($1,$2,$3,$4,'pending',$5) RETURNING *`,
+		roomID, body.Name, body.Type, nextOrder, settings,
+	).StructScan(&game); err != nil {
+		return c.Error(http.StatusInternalServerError, err)
+	}
+	return c.Render(http.StatusOK, r.JSON(game))
 }
 
-// GamesShowHandler returns a single game with its questions.
+// GamesShowHandler GET /api/rooms/{room_id}/games/{game_id}
 func GamesShowHandler(c buffalo.Context) error {
-	game := &models.Game{}
-
-	if err := models.DB.Eager("Questions").Find(game, c.Param("game_id")); err != nil {
-		return c.Error(http.StatusNotFound, err)
+	var game models.Game
+	if err := models.SQL.Get(&game, `SELECT * FROM games WHERE id=$1 AND room_id=$2`,
+		c.Param("game_id"), c.Param("room_id")); err != nil {
+		return c.Error(http.StatusNotFound, errNotFound("game"))
 	}
-
 	return c.Render(http.StatusOK, r.JSON(game))
 }
 
-// GamesUpdateHandler updates an existing game.
-func GamesUpdateHandler(c buffalo.Context) error {
-	game := &models.Game{}
+// GamesPatchHandler PATCH /api/rooms/{room_id}/games/{game_id}
+func GamesPatchHandler(c buffalo.Context) error {
+	gameID := c.Param("game_id")
+	roomID := c.Param("room_id")
 
-	tx, ok := c.Value("tx").(*pop.Connection)
-	if !ok {
-		return c.Error(http.StatusInternalServerError, fmt.Errorf("no transaction found"))
+	if ok, err := gameExistsInRoom(gameID, roomID); err != nil || !ok {
+		return c.Error(http.StatusNotFound, errNotFound("game"))
 	}
 
-	if err := tx.Find(game, c.Param("game_id")); err != nil {
-		return c.Error(http.StatusNotFound, err)
+	var body struct {
+		Status   *string         `json:"status"`
+		Config   json.RawMessage `json:"config"`
+		Settings json.RawMessage `json:"settings"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return c.Error(http.StatusBadRequest, err)
 	}
 
-	if err := c.Bind(game); err != nil {
-		return err
+	parts := []string{}
+	args := []any{}
+	idx := 1
+	if body.Status != nil {
+		parts = append(parts, field("status", &idx))
+		args = append(args, *body.Status)
+	}
+	// Accept either "config" or "settings" key for the JSONB column
+	var settingsVal json.RawMessage
+	if len(body.Config) > 0 {
+		settingsVal = body.Config
+	} else if len(body.Settings) > 0 {
+		settingsVal = body.Settings
+	}
+	if len(settingsVal) > 0 {
+		parts = append(parts, field("settings", &idx))
+		args = append(args, models.RawJSON(settingsVal))
+	}
+	if len(parts) == 0 {
+		return c.Error(http.StatusBadRequest, errMsg("no fields to update"))
+	}
+	args = append(args, gameID)
+
+	var game models.Game
+	if err := models.SQL.QueryRowx(
+		`UPDATE games SET `+strings.Join(parts, ", ")+` WHERE id=$`+itoa(idx)+` RETURNING *`,
+		args...,
+	).StructScan(&game); err != nil {
+		return c.Error(http.StatusInternalServerError, err)
 	}
 
-	verrs, err := tx.ValidateAndSave(game)
-	if err != nil {
-		return err
+	if body.Status != nil {
+		broadcastEvent("game:update", map[string]any{"game": game})
 	}
-
-	if verrs.HasAny() {
-		return c.Render(http.StatusUnprocessableEntity, r.JSON(verrs))
-	}
-
 	return c.Render(http.StatusOK, r.JSON(game))
 }
 
-// GamesDeleteHandler deletes a game.
+// GamesDeleteHandler DELETE /api/rooms/{room_id}/games/{game_id}
 func GamesDeleteHandler(c buffalo.Context) error {
-	game := &models.Game{}
+	gameID := c.Param("game_id")
+	roomID := c.Param("room_id")
 
-	tx, ok := c.Value("tx").(*pop.Connection)
-	if !ok {
-		return c.Error(http.StatusInternalServerError, fmt.Errorf("no transaction found"))
+	var game models.Game
+	if err := models.SQL.Get(&game, `SELECT * FROM games WHERE id=$1 AND room_id=$2`, gameID, roomID); err != nil {
+		return c.Error(http.StatusNotFound, errNotFound("game"))
+	}
+	if game.Status == "active" {
+		return c.Error(http.StatusBadRequest, errMsg("cannot delete an active game"))
 	}
 
-	if err := tx.Find(game, c.Param("game_id")); err != nil {
-		return c.Error(http.StatusNotFound, err)
+	// Delete dependent rows first
+	for _, q := range []string{
+		`DELETE FROM weight_entries WHERE game_id=$1`,
+		`DELETE FROM weight_game_data WHERE game_id=$1`,
+		`DELETE FROM random_winners WHERE game_id=$1`,
+		`DELETE FROM random_game_data WHERE game_id=$1`,
+		`DELETE FROM game_results WHERE game_id=$1`,
+	} {
+		if _, err := models.SQL.Exec(q, gameID); err != nil {
+			return c.Error(http.StatusInternalServerError, err)
+		}
+	}
+	if _, err := models.SQL.Exec(`DELETE FROM games WHERE id=$1`, gameID); err != nil {
+		return c.Error(http.StatusInternalServerError, err)
 	}
 
-	if err := tx.Destroy(game); err != nil {
-		return err
-	}
-
+	broadcastEvent("game:ended", map[string]any{"room_id": roomID, "game_id": gameID})
 	return c.Render(http.StatusOK, r.JSON(map[string]string{"message": "game deleted"}))
-}
-
-// GamesStartHandler starts a game session.
-func GamesStartHandler(c buffalo.Context) error {
-	game := &models.Game{}
-
-	tx, ok := c.Value("tx").(*pop.Connection)
-	if !ok {
-		return c.Error(http.StatusInternalServerError, fmt.Errorf("no transaction found"))
-	}
-
-	if err := tx.Find(game, c.Param("game_id")); err != nil {
-		return c.Error(http.StatusNotFound, err)
-	}
-
-	game.Status = "active"
-	game.CurrentQuestionIndex = 0
-
-	if _, err := tx.ValidateAndSave(game); err != nil {
-		return err
-	}
-
-	// Broadcast game start via WebSocket
-	BroadcastToRoom(game.RoomID.String(), WSMessage{
-		Type:    "game_started",
-		Payload: game,
-	})
-
-	return c.Render(http.StatusOK, r.JSON(game))
-}
-
-// GamesNextHandler advances to the next question.
-func GamesNextHandler(c buffalo.Context) error {
-	game := &models.Game{}
-
-	tx, ok := c.Value("tx").(*pop.Connection)
-	if !ok {
-		return c.Error(http.StatusInternalServerError, fmt.Errorf("no transaction found"))
-	}
-
-	if err := tx.Eager("Questions").Find(game, c.Param("game_id")); err != nil {
-		return c.Error(http.StatusNotFound, err)
-	}
-
-	game.CurrentQuestionIndex++
-
-	if game.CurrentQuestionIndex >= len(game.Questions) {
-		game.Status = "finished"
-	}
-
-	if _, err := tx.ValidateAndSave(game); err != nil {
-		return err
-	}
-
-	BroadcastToRoom(game.RoomID.String(), WSMessage{
-		Type:    "question_changed",
-		Payload: game,
-	})
-
-	return c.Render(http.StatusOK, r.JSON(game))
-}
-
-// GamesEndHandler ends a game session.
-func GamesEndHandler(c buffalo.Context) error {
-	game := &models.Game{}
-
-	tx, ok := c.Value("tx").(*pop.Connection)
-	if !ok {
-		return c.Error(http.StatusInternalServerError, fmt.Errorf("no transaction found"))
-	}
-
-	if err := tx.Find(game, c.Param("game_id")); err != nil {
-		return c.Error(http.StatusNotFound, err)
-	}
-
-	game.Status = "finished"
-
-	if _, err := tx.ValidateAndSave(game); err != nil {
-		return err
-	}
-
-	BroadcastToRoom(game.RoomID.String(), WSMessage{
-		Type:    "game_ended",
-		Payload: game,
-	})
-
-	return c.Render(http.StatusOK, r.JSON(game))
-}
-
-// SubmitAnswerHandler handles a player's answer submission.
-func SubmitAnswerHandler(c buffalo.Context) error {
-	submission := &models.Submission{}
-
-	if err := c.Bind(submission); err != nil {
-		return err
-	}
-
-	submission.GameID = mustUUID(c.Param("game_id"))
-
-	tx, ok := c.Value("tx").(*pop.Connection)
-	if !ok {
-		return c.Error(http.StatusInternalServerError, fmt.Errorf("no transaction found"))
-	}
-
-	verrs, err := tx.ValidateAndCreate(submission)
-	if err != nil {
-		return err
-	}
-
-	if verrs.HasAny() {
-		return c.Render(http.StatusUnprocessableEntity, r.JSON(verrs))
-	}
-
-	// Broadcast the submission to the room
-	game := &models.Game{}
-	if err := tx.Find(game, submission.GameID); err == nil {
-		BroadcastToRoom(game.RoomID.String(), WSMessage{
-			Type:    "answer_submitted",
-			Payload: submission,
-		})
-	}
-
-	return c.Render(http.StatusCreated, r.JSON(submission))
-}
-
-// GameResultsHandler returns results for a game.
-func GameResultsHandler(c buffalo.Context) error {
-	submissions := &models.Submissions{}
-
-	if err := models.DB.Where("game_id = ?", c.Param("game_id")).All(submissions); err != nil {
-		return err
-	}
-
-	return c.Render(http.StatusOK, r.JSON(submissions))
-}
-
-// LeaderboardHandler returns the leaderboard for a game.
-func LeaderboardHandler(c buffalo.Context) error {
-	type LeaderboardEntry struct {
-		PlayerID   string `json:"player_id" db:"player_id"`
-		PlayerName string `json:"player_name" db:"player_name"`
-		Score      int    `json:"score" db:"score"`
-		Rank       int    `json:"rank" db:"rank"`
-	}
-
-	var entries []LeaderboardEntry
-
-	query := `
-		SELECT
-			p.id AS player_id,
-			p.name AS player_name,
-			COUNT(CASE WHEN s.is_correct THEN 1 END) AS score,
-			RANK() OVER (ORDER BY COUNT(CASE WHEN s.is_correct THEN 1 END) DESC) AS rank
-		FROM submissions s
-		JOIN players p ON p.id = s.player_id
-		WHERE s.game_id = ?
-		GROUP BY p.id, p.name
-		ORDER BY score DESC
-	`
-
-	if err := models.DB.RawQuery(query, c.Param("game_id")).All(&entries); err != nil {
-		return err
-	}
-
-	return c.Render(http.StatusOK, r.JSON(entries))
 }
