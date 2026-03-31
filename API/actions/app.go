@@ -1,14 +1,16 @@
 package actions
 
 import (
-"sync"
+	"sync"
 
-"github.com/gobuffalo/buffalo"
-"github.com/gobuffalo/envy"
-forcessl "github.com/gobuffalo/mw-forcessl"
-paramlogger "github.com/gobuffalo/mw-paramlogger"
-"github.com/rs/cors"
-"github.com/unrolled/secure"
+	"net/http"
+
+	"github.com/gobuffalo/buffalo"
+	"github.com/gobuffalo/envy"
+	forcessl "github.com/gobuffalo/mw-forcessl"
+	paramlogger "github.com/gobuffalo/mw-paramlogger"
+	"github.com/rs/cors"
+	"github.com/unrolled/secure"
 )
 
 // ENV is the running environment. Default: "development".
@@ -37,14 +39,25 @@ app.Use(paramlogger.ParameterLogger)
 corsHandler := cors.New(cors.Options{
 AllowedOrigins:   []string{envy.Get("CORS_ORIGINS", "http://localhost:3000")},
 AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Requested-With"},
+ExposedHeaders:   []string{"Content-Length"},
 AllowCredentials: true,
 })
 app.Use(func(next buffalo.Handler) buffalo.Handler {
 return func(c buffalo.Context) error {
 corsHandler.HandlerFunc(c.Response(), c.Request())
+// Short-circuit preflight requests — CORS handler already wrote the response
+if c.Request().Method == http.MethodOptions {
+return nil
+}
 return next(c)
 }
+})
+
+// Catch-all OPTIONS handler for CORS preflight requests.
+// Must be registered before all other routes so gorilla/mux doesn't return 405.
+app.OPTIONS("/{path:.*}", func(c buffalo.Context) error {
+	return c.Render(http.StatusNoContent, nil)
 })
 
 // Health check
