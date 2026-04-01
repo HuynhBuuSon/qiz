@@ -19,7 +19,7 @@ func ResultsListHandler(c buffalo.Context) error {
 	var results []models.GameResult
 	if err := models.SQL.Select(&results,
 		`SELECT gr.id, gr.game_id, gr.player_id, gr.points_earned, gr.rank, gr.created_at,
-		        p.name AS player_name, p.score, p.rank AS player_rank
+		        p.name AS player_name, p.score AS player_score, p.rank AS player_rank
 		 FROM game_results gr
 		 JOIN players p ON gr.player_id = p.id
 		 WHERE gr.game_id = $1
@@ -112,7 +112,7 @@ func ResultsBatchHandler(c buffalo.Context) error {
 	var results []models.GameResult
 	if err := models.SQL.Select(&results,
 		`SELECT gr.id, gr.game_id, gr.player_id, gr.points_earned, gr.rank, gr.created_at,
-		        p.name AS player_name, p.score, p.rank AS player_rank
+		        p.name AS player_name, p.score AS player_score, p.rank AS player_rank
 		 FROM game_results gr
 		 JOIN players p ON gr.player_id = p.id
 		 WHERE gr.game_id = $1

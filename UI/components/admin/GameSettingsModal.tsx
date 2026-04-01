@@ -140,7 +140,7 @@ export default function GameSettingsModal({
                   <input
                     type="number"
                     value={pointFrom}
-                    onChange={(e) => setPointFrom(parseInt(e.target.value))}
+                    onChange={(e) => setPointFrom(parseInt(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -151,7 +151,7 @@ export default function GameSettingsModal({
                   <input
                     type="number"
                     value={pointTo}
-                    onChange={(e) => setPointTo(parseInt(e.target.value))}
+                    onChange={(e) => setPointTo(parseInt(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -172,7 +172,7 @@ export default function GameSettingsModal({
                     <input
                       type="number"
                       value={weightLimitFrom}
-                      onChange={(e) => setWeightLimitFrom(parseInt(e.target.value))}
+                      onChange={(e) => setWeightLimitFrom(parseInt(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -183,7 +183,7 @@ export default function GameSettingsModal({
                     <input
                       type="number"
                       value={weightLimitTo}
-                      onChange={(e) => setWeightLimitTo(parseInt(e.target.value))}
+                      onChange={(e) => setWeightLimitTo(parseInt(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>

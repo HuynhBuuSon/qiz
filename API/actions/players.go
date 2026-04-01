@@ -49,21 +49,11 @@ func PlayersCreateHandler(c buffalo.Context) error {
 		return c.Error(http.StatusBadRequest, errMsg("room is at maximum capacity"))
 	}
 
-	// Auto-increment sequence_number
-	var maxSeq *int
-	if err := models.SQL.Get(&maxSeq, `SELECT MAX(sequence_number) FROM players WHERE room_id=$1`, roomID); err != nil {
-		return c.Error(http.StatusInternalServerError, err)
-	}
-	nextSeq := 1
-	if maxSeq != nil {
-		nextSeq = *maxSeq + 1
-	}
-
 	var player models.Player
 	if err := models.SQL.QueryRowx(
-		`INSERT INTO players (room_id, name, sequence_number, score, rank)
-		 VALUES ($1,$2,$3,0,NULL) RETURNING *`,
-		roomID, strings.TrimSpace(body.Name), nextSeq,
+		`INSERT INTO players (room_id, name, score, rank)
+		 VALUES ($1,$2,0,NULL) RETURNING *`,
+		roomID, strings.TrimSpace(body.Name),
 	).StructScan(&player); err != nil {
 		return c.Error(http.StatusInternalServerError, err)
 	}
