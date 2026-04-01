@@ -77,6 +77,7 @@ All REST endpoints are under `/api`. No versioning prefix.
 
 ```
 GET  /api/swagger.json
+GET  /api/swagger        (development only — Swagger UI)
 
 GET  /api/rooms
 POST /api/rooms

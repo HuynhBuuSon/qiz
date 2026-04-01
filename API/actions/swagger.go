@@ -307,6 +307,38 @@ func SwaggerJSONHandler(c buffalo.Context) error {
 	return c.Render(http.StatusOK, r.JSON(swaggerSpec))
 }
 
+// SwaggerUIHandler GET /api/swagger — serves Swagger UI (development only).
+func SwaggerUIHandler(c buffalo.Context) error {
+	html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Qiz API — Swagger UI</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '/api/swagger.json',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      presets: [
+        SwaggerUIBundle.presets.apis,
+        SwaggerUIBundle.SwaggerUIStandalonePreset,
+      ],
+      layout: 'BaseLayout',
+    });
+  </script>
+</body>
+</html>`
+	c.Response().Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, err := c.Response().Write([]byte(html))
+	return err
+}
+
 // --- tiny helpers for building the spec ---
 
 func jsonRef(schema string) map[string]any {
