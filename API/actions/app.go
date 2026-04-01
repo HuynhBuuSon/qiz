@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"net/http"
+	"strings"
 
 	"github.com/gobuffalo/buffalo"
 	"github.com/gobuffalo/envy"
@@ -36,13 +37,25 @@ func App() *buffalo.App {
 		app.Use(paramlogger.ParameterLogger)
 
 		// CORS
-		corsHandler := cors.New(cors.Options{
-			AllowedOrigins:   []string{envy.Get("CORS_ORIGINS", "http://localhost:3000")},
+		corsOpts := cors.Options{
 			AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Requested-With"},
 			ExposedHeaders:   []string{"Content-Length"},
 			AllowCredentials: true,
-		})
+		}
+		if ENV == "development" {
+			// Allow any localhost/127.0.0.1 origin so Swagger UI and the Next.js
+			// dev server can both call the API without CORS errors.
+			corsOpts.AllowOriginFunc = func(origin string) bool {
+				return strings.HasPrefix(origin, "http://localhost") ||
+					strings.HasPrefix(origin, "http://127.0.0.1:3001") ||
+					strings.HasPrefix(origin, "http://localhost:3001") ||
+					strings.HasPrefix(origin, "localhost:3001")
+			}
+		} else {
+			corsOpts.AllowedOrigins = []string{envy.Get("CORS_ORIGINS", "http://localhost:3000")}
+		}
+		corsHandler := cors.New(corsOpts)
 		app.Use(func(next buffalo.Handler) buffalo.Handler {
 			return func(c buffalo.Context) error {
 				corsHandler.HandlerFunc(c.Response(), c.Request())
