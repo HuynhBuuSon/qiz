@@ -183,11 +183,15 @@ export default function PlayerGame() {
     }
   }, [player]);
 
-  // Real-time updates for player data
+  const fetchPlayersData = useCallback(async () => {
+    await Promise.all([fetchPlayerData(), fetchRoomPlayers()]);
+  }, [fetchPlayerData, fetchRoomPlayers]);
+
+  // Real-time updates for player + room players (both triggered by players:update)
   useRealTimeUpdates({
     roomId: roomId,
-    eventName: `player:${playerId}:update`,
-    fetchCallback: fetchPlayerData,
+    eventName: 'players:update',
+    fetchCallback: fetchPlayersData,
     pollingInterval: 3000,
     enabled: Boolean(isReady && roomId && playerId),
   });
@@ -195,17 +199,8 @@ export default function PlayerGame() {
   // Real-time updates for active game
   useRealTimeUpdates({
     roomId: roomId,
-    eventName: 'game:active',
+    eventName: 'game:update',
     fetchCallback: fetchActiveGame,
-    pollingInterval: 3000,
-    enabled: Boolean(isReady && roomId && playerId),
-  });
-
-  // Real-time updates for room players
-  useRealTimeUpdates({
-    roomId: roomId,
-    eventName: 'players:update',
-    fetchCallback: fetchRoomPlayers,
     pollingInterval: 3000,
     enabled: Boolean(isReady && roomId && playerId),
   });

@@ -122,16 +122,13 @@ var swaggerSpec = map[string]any{
 				"responses":   map[string]any{"200": map[string]any{"description": "OK", "content": jsonArray("GameResult")}},
 			},
 		},
-		"/rooms/{room_id}/games/{game_id}/random/winner": map[string]any{
+		"/rooms/{room_id}/games/{game_id}/random/winners": map[string]any{
 			"parameters": []map[string]any{pathParam("room_id"), pathParam("game_id")},
 			"post": map[string]any{
 				"summary": "Record random winner", "operationId": "createRandomWinner", "tags": []string{"random"},
 				"requestBody": jsonBody("CreateRandomWinnerRequest"),
 				"responses":   map[string]any{"200": map[string]any{"description": "OK", "content": jsonRef("RandomWinner")}},
 			},
-		},
-		"/rooms/{room_id}/games/{game_id}/random/winners": map[string]any{
-			"parameters": []map[string]any{pathParam("room_id"), pathParam("game_id")},
 			"get": map[string]any{
 				"summary": "List random winners", "operationId": "listRandomWinners", "tags": []string{"random"},
 				"responses": map[string]any{"200": map[string]any{"description": "OK", "content": jsonArray("RandomWinner")}},

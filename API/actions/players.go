@@ -59,6 +59,7 @@ func PlayersCreateHandler(c buffalo.Context) error {
 	}
 
 	broadcastEvent("player:joined", map[string]any{"room_id": roomID, "player": player})
+	broadcastEvent("players:update", map[string]any{"room_id": roomID})
 	return c.Render(http.StatusOK, r.JSON(player))
 }
 
@@ -131,6 +132,7 @@ func PlayersPatchHandler(c buffalo.Context) error {
 		}
 	}
 
+	broadcastEvent("players:update", map[string]any{"room_id": roomID})
 	return c.Render(http.StatusOK, r.JSON(player))
 }
 
@@ -147,5 +149,6 @@ func PlayersDeleteHandler(c buffalo.Context) error {
 		return c.Error(http.StatusInternalServerError, err)
 	}
 	broadcastEvent("player:left", map[string]any{"room_id": roomID, "player_id": playerID})
+	broadcastEvent("players:update", map[string]any{"room_id": roomID})
 	return c.Render(http.StatusOK, r.JSON(map[string]string{"message": "player deleted"}))
 }

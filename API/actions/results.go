@@ -121,5 +121,6 @@ func ResultsBatchHandler(c buffalo.Context) error {
 	}
 
 	broadcastEvent("points:updated", map[string]any{"room_id": roomID, "game_id": gameID, "results": results})
+	broadcastEvent("players:update", map[string]any{"room_id": roomID})
 	return c.Render(http.StatusOK, r.JSON(results))
 }

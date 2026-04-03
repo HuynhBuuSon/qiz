@@ -64,6 +64,7 @@ func GamesCreateHandler(c buffalo.Context) error {
 	).StructScan(&game); err != nil {
 		return c.Error(http.StatusInternalServerError, err)
 	}
+	broadcastEvent("game:update", map[string]any{"room_id": roomID, "game": game})
 	return c.Render(http.StatusOK, r.JSON(game))
 }
 
@@ -126,9 +127,7 @@ func GamesPatchHandler(c buffalo.Context) error {
 		return c.Error(http.StatusInternalServerError, err)
 	}
 
-	if body.Status != nil {
-		broadcastEvent("game:update", map[string]any{"game": game})
-	}
+	broadcastEvent("game:update", map[string]any{"room_id": roomID, "game": game})
 	return c.Render(http.StatusOK, r.JSON(game))
 }
 

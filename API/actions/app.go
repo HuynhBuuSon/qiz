@@ -67,6 +67,9 @@ func App() *buffalo.App {
 			}
 		})
 
+		// Catch-all OPTIONS route so CORS middleware runs for every preflight
+		app.OPTIONS("/{path:.*}", func(c buffalo.Context) error { return nil })
+
 		// Health check
 		app.GET("/", HomeHandler)
 
@@ -108,7 +111,7 @@ func App() *buffalo.App {
 		room.PUT("/games/{game_id}/results", ResultsBatchHandler)
 
 		// Random game
-		room.POST("/games/{game_id}/random/winner", RandomWinnerCreateHandler)
+		room.POST("/games/{game_id}/random/winners", RandomWinnerCreateHandler)
 		room.GET("/games/{game_id}/random/winners", RandomWinnersListHandler)
 
 		// WebSocket endpoint

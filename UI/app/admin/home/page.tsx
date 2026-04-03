@@ -91,7 +91,7 @@ export default function AdminHome() {
   // Real-time updates for active game
   useRealTimeUpdates({
     roomId: currentRoom?.id,
-    eventName: 'game:active',
+    eventName: 'game:update',
     fetchCallback: loadActiveGame,
     pollingInterval: 3000,
     enabled: Boolean(isReady && currentRoom?.id),
